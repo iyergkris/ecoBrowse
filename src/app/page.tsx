@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { EcoScoreDisplay } from "@/components/eco-score-display";
 import { FootprintDetails } from "@/components/footprint-details";
 import { ReportsDashboard } from "@/components/reports-dashboard";
+import { PopularSites } from "@/components/popular-sites"; // Import PopularSites
 import { calculateWebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
 import type { WebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
 import { Loader2, Search, Leaf } from 'lucide-react'; // Import Leaf
@@ -158,6 +159,12 @@ export default function Home() {
           {/* Pass key to force re-render when needed, although storage listener in component is preferred */}
           <ReportsDashboard key={reportUpdateTrigger} />
        </div>
+
+       {/* Popular Sites Section */}
+       <div className="pt-8">
+          <PopularSites />
+       </div>
+
 
         <footer className="text-center text-xs text-muted-foreground pt-6">
             EcoBrowse v0.1.0 - Helping you navigate the web sustainably.
