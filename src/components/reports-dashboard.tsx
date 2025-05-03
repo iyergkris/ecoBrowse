@@ -1,0 +1,287 @@
+"use client";
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Download, BarChart, Trash2 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { useToast } from '@/hooks/use-toast';
+
+// Define the structure of a single report entry
+interface ReportEntry {
+  timestamp: number; // Unix timestamp
+  websiteUrl: string;
+  carbonScore: number; // 0-1 scale
+}
+
+// Define the structure for aggregated data
+interface AggregatedReport {
+  period: string; // e.g., 'Week of 2024-07-21', 'July 2024', '2024'
+  totalVisits: number;
+  averageScore: number;
+  highestScoreSite: string | null;
+  lowestScoreSite: string | null;
+}
+
+const LOCAL_STORAGE_KEY = 'ecoBrowseReports';
+
+export function ReportsDashboard() {
+  const [reportData, setReportData] = useState<ReportEntry[]>([]);
+  const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'annual'>('weekly');
+  const [aggregatedReports, setAggregatedReports] = useState<AggregatedReport[]>([]);
+  const { toast } = useToast();
+
+  // Load data from local storage on mount
+  useEffect(() => {
+    try {
+      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (storedData) {
+        setReportData(JSON.parse(storedData));
+      }
+    } catch (error) {
+      console.error("Failed to load report data from local storage:", error);
+      toast({
+        title: "Error Loading Data",
+        description: "Could not load past report data.",
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  // --- MOCK FUNCTION TO ADD DATA (Replace with actual integration) ---
+  const addMockData = () => {
+    const now = Date.now();
+    const mockEntry: ReportEntry = {
+      timestamp: now,
+      websiteUrl: `example.com/${Math.random().toString(36).substring(7)}`,
+      carbonScore: Math.random(), // Random score between 0 and 1
+    };
+    const updatedData = [...reportData, mockEntry];
+    setReportData(updatedData);
+    try {
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedData));
+       toast({ title: "Mock Data Added", description: "A new entry was simulated." });
+    } catch (error) {
+        console.error("Failed to save report data to local storage:", error);
+        toast({
+            title: "Error Saving Data",
+            description: "Could not save the new report entry.",
+            variant: "destructive",
+        });
+    }
+  };
+   // --- END MOCK FUNCTION ---
+
+  const aggregateData = useCallback((data: ReportEntry[], selectedTimeframe: 'weekly' | 'monthly' | 'annual'): AggregatedReport[] => {
+    const aggregated: { [key: string]: { entries: ReportEntry[], totalScore: number } } = {};
+
+    const getPeriodKey = (timestamp: number): string => {
+      const date = new Date(timestamp);
+      if (selectedTimeframe === 'weekly') {
+        const dayOfWeek = date.getDay(); // 0 (Sun) - 6 (Sat)
+        const startOfWeek = new Date(date);
+        startOfWeek.setDate(date.getDate() - dayOfWeek);
+        startOfWeek.setHours(0, 0, 0, 0);
+        return `Week of ${startOfWeek.toISOString().split('T')[0]}`;
+      } else if (selectedTimeframe === 'monthly') {
+        return `${date.toLocaleString('default', { month: 'long' })} ${date.getFullYear()}`;
+      } else { // annual
+        return `${date.getFullYear()}`;
+      }
+    };
+
+    data.forEach(entry => {
+      const key = getPeriodKey(entry.timestamp);
+      if (!aggregated[key]) {
+        aggregated[key] = { entries: [], totalScore: 0 };
+      }
+      aggregated[key].entries.push(entry);
+      aggregated[key].totalScore += entry.carbonScore;
+    });
+
+    return Object.entries(aggregated).map(([period, { entries, totalScore }]) => {
+      const totalVisits = entries.length;
+      const averageScore = totalVisits > 0 ? (totalScore / totalVisits) * 100 : 0; // Scale to 0-100
+
+       let highestScore = -1;
+       let lowestScore = 2; // Start above max possible score (1)
+       let highestScoreSite: string | null = null;
+       let lowestScoreSite: string | null = null;
+
+        entries.forEach(e => {
+            if(e.carbonScore > highestScore) {
+                highestScore = e.carbonScore;
+                highestScoreSite = e.websiteUrl;
+            }
+             if(e.carbonScore < lowestScore) {
+                lowestScore = e.carbonScore;
+                lowestScoreSite = e.websiteUrl;
+            }
+        });
+
+
+      return {
+        period,
+        totalVisits,
+        averageScore,
+        highestScoreSite: highestScoreSite ? `${highestScoreSite} (${(highestScore*100).toFixed(1)})` : 'N/A',
+        lowestScoreSite: lowestScoreSite ? `${lowestScoreSite} (${(lowestScore*100).toFixed(1)})` : 'N/A' ,
+      };
+    }).sort((a, b) => {
+      // Attempt to sort by date, newest first
+      try {
+        // This might fail if period keys are not easily parseable dates
+        const dateA = new Date(a.period.replace('Week of ', '').split(' ')[0]);
+        const dateB = new Date(b.period.replace('Week of ', '').split(' ')[0]);
+         if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
+             return dateB.getTime() - dateA.getTime();
+         }
+      } catch (e) {}
+      // Fallback sort by period string if date parsing fails
+      return b.period.localeCompare(a.period);
+    });
+  }, []);
+
+
+   // Update aggregated reports when data or timeframe changes
+  useEffect(() => {
+    setAggregatedReports(aggregateData(reportData, timeframe));
+  }, [reportData, timeframe, aggregateData]);
+
+  const downloadReport = () => {
+    // Basic CSV download implementation
+     if (aggregatedReports.length === 0) {
+      toast({ title: "No Data", description: "Cannot download an empty report.", variant:"destructive" });
+      return;
+    }
+
+    const headers = ["Period", "Total Visits", "Average Score (0-100)", "Highest Score Site (Score)", "Lowest Score Site (Score)"];
+    const rows = aggregatedReports.map(report => [
+      `"${report.period.replace(/"/g, '""')}"`, // Escape double quotes
+      report.totalVisits,
+      report.averageScore.toFixed(1),
+      `"${(report.highestScoreSite || 'N/A').replace(/"/g, '""')}"`,
+      `"${(report.lowestScoreSite || 'N/A').replace(/"/g, '""')}"`
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8,"
+      + headers.join(",") + "\n"
+      + rows.map(e => e.join(",")).join("\n");
+
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `ecobrowse_report_${timeframe}_${new Date().toISOString().split('T')[0]}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+     toast({ title: "Report Downloaded", description: `Your ${timeframe} report has been downloaded as CSV.` });
+  };
+
+   const clearAllData = () => {
+        setReportData([]);
+        setAggregatedReports([]);
+        try {
+            localStorage.removeItem(LOCAL_STORAGE_KEY);
+            toast({ title: "Data Cleared", description: "All historical report data has been removed." });
+        } catch (error) {
+            console.error("Failed to clear local storage:", error);
+            toast({
+                title: "Error Clearing Data",
+                description: "Could not remove report data from storage.",
+                variant: "destructive",
+            });
+        }
+    };
+
+
+  return (
+    <Card className="w-full transition-shadow duration-300 hover:shadow-lg">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+         <div>
+            <CardTitle>Statistical Reports</CardTitle>
+            <CardDescription>Your browsing energy consumption overview.</CardDescription>
+         </div>
+         {/* Mock Button */}
+         {process.env.NODE_ENV === 'development' && (
+            <Button onClick={addMockData} size="sm" variant="outline">Add Mock Entry</Button>
+         )}
+      </CardHeader>
+      <CardContent>
+        <div className="flex justify-between items-center mb-4">
+          <Select value={timeframe} onValueChange={(value: 'weekly' | 'monthly' | 'annual') => setTimeframe(value)}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Select timeframe" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="weekly">Weekly</SelectItem>
+              <SelectItem value="monthly">Monthly</SelectItem>
+              <SelectItem value="annual">Annual</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button onClick={downloadReport} variant="outline" size="sm" disabled={aggregatedReports.length === 0}>
+            <Download className="mr-2 h-4 w-4" />
+            Download Report
+          </Button>
+        </div>
+
+        {aggregatedReports.length > 0 ? (
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Period</TableHead>
+                <TableHead className="text-center">Total Visits</TableHead>
+                <TableHead className="text-center">Avg. Score</TableHead>
+                <TableHead>Highest Score Site</TableHead>
+                 <TableHead>Lowest Score Site</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {aggregatedReports.map((report) => (
+                <TableRow key={report.period}>
+                  <TableCell className="font-medium">{report.period}</TableCell>
+                  <TableCell className="text-center">{report.totalVisits}</TableCell>
+                  <TableCell className="text-center">{report.averageScore.toFixed(1)}</TableCell>
+                   <TableCell className="text-xs">{report.highestScoreSite}</TableCell>
+                  <TableCell className="text-xs">{report.lowestScoreSite}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        ) : (
+          <div className="text-center py-10 text-muted-foreground">
+            <BarChart className="mx-auto h-12 w-12 mb-2" />
+            <p>No report data available for the selected timeframe.</p>
+            <p className="text-xs">Keep browsing to generate reports.</p>
+          </div>
+        )}
+      </CardContent>
+       <CardFooter className="flex justify-end">
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="sm" disabled={reportData.length === 0}>
+                        <Trash2 className="mr-2 h-4 w-4" />
+                        Clear All Data
+                    </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            This action cannot be undone. This will permanently delete all
+                            your browsing report history stored locally.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={clearAllData}>Continue</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </CardFooter>
+    </Card>
+  );
+}
