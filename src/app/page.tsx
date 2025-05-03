@@ -87,7 +87,8 @@ export default function Home() {
 
 
   return (
-    <main className="container mx-auto p-4 md:p-8 space-y-8">
+    // Apply max-width for larger screens, mx-auto for centering
+    <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8">
       <header className="text-center space-y-2">
          <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-leaf h-4 w-4"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
@@ -128,6 +129,7 @@ export default function Home() {
 
       {/* Results Section */}
       {(isLoading || footprintData || currentUrlToAnalyze) && (
+          // Use grid layout with responsiveness: 1 column on small screens, 2 on medium+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Score Display */}
             <EcoScoreDisplay score={footprintData?.carbonFootprintScore ?? 0} />
@@ -135,7 +137,7 @@ export default function Home() {
             {/* Footprint Details */}
             <FootprintDetails details={footprintData} />
 
-            {/* Suggestions */}
+            {/* Suggestions - Span full width on medium+ screens */}
              <div className="md:col-span-2">
                  <Suggestions
                     websiteUrl={currentUrlToAnalyze}

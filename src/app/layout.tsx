@@ -25,8 +25,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-       {/* Apply fixed width for Chrome Extension popup */}
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased w-[400px] min-h-[300px]`}>
+       {/* Remove fixed width for responsiveness */}
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-[300px]`}>
         {children}
         <Toaster /> {/* Add Toaster here */}
       </body>
