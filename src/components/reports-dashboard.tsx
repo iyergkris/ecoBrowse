@@ -4,10 +4,12 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Download, BarChart, Trash2 } from 'lucide-react';
+import { FileText, BarChart, Trash2 } from 'lucide-react'; // Changed icon from Download to FileText
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
+import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 
 // Define the structure of a single report entry
 interface ReportEntry {
@@ -20,9 +22,9 @@ interface ReportEntry {
 interface AggregatedReport {
   period: string; // e.g., 'Week of 2024-07-21', 'July 2024', '2024'
   totalVisits: number;
-  averageScore: number;
-  highestScoreSite: string | null;
-  lowestScoreSite: string | null;
+  averageScore: number; // 0-100 scale
+  highestScoreSite: string | null; // URL (Score)
+  lowestScoreSite: string | null; // URL (Score)
 }
 
 const LOCAL_STORAGE_KEY = 'ecoBrowseReports';
@@ -39,8 +41,10 @@ export function ReportsDashboard() {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedData) {
         const parsedData = JSON.parse(storedData);
-        setReportData(parsedData);
-        console.log("ReportsDashboard: Storage change detected, data reloaded.");
+        // Sort raw data by timestamp, newest first before setting state
+        const sortedData = parsedData.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
+        setReportData(sortedData);
+        console.log("ReportsDashboard: Storage change detected, data reloaded and sorted.");
       } else {
          setReportData([]); // Clear data if storage is empty
          console.log("ReportsDashboard: Storage change detected, data cleared.");
@@ -117,7 +121,6 @@ export function ReportsDashboard() {
             }
         });
 
-
       return {
         period,
         totalVisits,
@@ -128,13 +131,24 @@ export function ReportsDashboard() {
     }).sort((a, b) => {
       // Attempt to sort by date, newest first
       try {
-        // This might fail if period keys are not easily parseable dates
-        const dateA = new Date(a.period.replace('Week of ', '').split(' ')[0]);
-        const dateB = new Date(b.period.replace('Week of ', '').split(' ')[0]);
+         let dateA: Date, dateB: Date;
+         if(a.period.startsWith('Week of')) {
+             dateA = new Date(a.period.replace('Week of ', ''));
+             dateB = new Date(b.period.replace('Week of ', ''));
+         } else if (a.period.includes(' ')) { // Monthly format 'Month Year'
+             dateA = new Date(a.period);
+             dateB = new Date(b.period);
+         } else { // Annual format 'Year'
+             dateA = new Date(parseInt(a.period), 0, 1); // Jan 1st of the year
+             dateB = new Date(parseInt(b.period), 0, 1);
+         }
+
          if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
              return dateB.getTime() - dateA.getTime();
          }
-      } catch (e) {}
+      } catch (e) {
+          console.warn("Could not parse dates for sorting:", a.period, b.period, e);
+      }
       // Fallback sort by period string if date parsing fails
       return b.period.localeCompare(a.period);
     });
@@ -146,35 +160,66 @@ export function ReportsDashboard() {
     setAggregatedReports(aggregateData(reportData, timeframe));
   }, [reportData, timeframe, aggregateData]);
 
-  const downloadReport = () => {
-    // Basic CSV download implementation
+  const downloadPdfReport = () => {
      if (aggregatedReports.length === 0) {
       toast({ title: "No Data", description: "Cannot download an empty report.", variant:"destructive" });
       return;
     }
 
-    const headers = ["Period", "Total Visits", "Average Score (0-100)", "Highest Score Site (Score)", "Lowest Score Site (Score)"];
-    const rows = aggregatedReports.map(report => [
-      `"${report.period.replace(/"/g, '""')}"`, // Escape double quotes
-      report.totalVisits,
-      report.averageScore.toFixed(1),
-      `"${(report.highestScoreSite || 'N/A').replace(/"/g, '""')}"`,
-      `"${(report.lowestScoreSite || 'N/A').replace(/"/g, '""')}"`
+    const doc = new jsPDF();
+    const tableColumns = ["Period", "Total Visits", "Avg. Score", "Highest Score Site (Score)", "Lowest Score Site (Score)"];
+    const tableRows = aggregatedReports.map(report => [
+        report.period,
+        report.totalVisits.toString(),
+        report.averageScore.toFixed(1),
+        report.highestScoreSite || 'N/A',
+        report.lowestScoreSite || 'N/A'
     ]);
 
-    const csvContent = "data:text/csv;charset=utf-8,"
-      + headers.join(",") + "\n"
-      + rows.map(e => e.join(",")).join("\n");
+    // Add Title
+    doc.setFontSize(18);
+    doc.text("EcoBrowse Carbon Footprint Report", 14, 22);
 
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement("a");
-    link.setAttribute("href", encodedUri);
-    link.setAttribute("download", `ecobrowse_report_${timeframe}_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+    // Add Subtitle (Timeframe and Generation Date)
+    doc.setFontSize(11);
+    doc.setTextColor(100); // Gray color
+    doc.text(`Timeframe: ${timeframe.charAt(0).toUpperCase() + timeframe.slice(1)}`, 14, 30);
+    doc.text(`Generated on: ${new Date().toLocaleDateString()}`, 14, 35);
 
-     toast({ title: "Report Downloaded", description: `Your ${timeframe} report has been downloaded as CSV.` });
+
+    // Add Table using autoTable
+    autoTable(doc, {
+        startY: 45, // Y position to start the table
+        head: [tableColumns],
+        body: tableRows,
+        theme: 'striped', // 'striped', 'grid', 'plain'
+        headStyles: { fillColor: [0, 150, 136] }, // Teal header color matching theme
+        styles: { fontSize: 8 },
+        columnStyles: {
+           0: { cellWidth: 35 }, // Period
+           1: { cellWidth: 20, halign: 'center' }, // Total Visits
+           2: { cellWidth: 20, halign: 'center' }, // Avg. Score
+           3: { cellWidth: 'auto' }, // Highest Score Site
+           4: { cellWidth: 'auto' }, // Lowest Score Site
+        },
+        didParseCell: function (data) {
+            // Wrap text for long site names
+            if (data.column.index === 3 || data.column.index === 4) {
+                // No explicit wrapping needed, autoTable handles basic width
+            }
+        }
+    });
+
+    // Add Footer Note
+    const finalY = (doc as any).lastAutoTable.finalY || 45; // Get Y position after table
+    doc.setFontSize(9);
+    doc.setTextColor(150);
+    doc.text("Note: Scores range from 0 (best) to 100 (worst). Average score reflects the mean carbon efficiency.", 14, finalY + 10);
+
+    // Save the PDF
+    doc.save(`EcoBrowse_Report_${timeframe}_${new Date().toISOString().split('T')[0]}.pdf`);
+
+     toast({ title: "Report Downloaded", description: `Your ${timeframe} report has been generated as PDF.` });
   };
 
    const clearAllData = () => {
@@ -203,7 +248,6 @@ export function ReportsDashboard() {
             <CardTitle>Statistical Reports</CardTitle>
             <CardDescription>Your browsing energy consumption overview.</CardDescription>
          </div>
-         {/* Removed Mock Button */}
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center mb-4">
@@ -217,9 +261,9 @@ export function ReportsDashboard() {
               <SelectItem value="annual">Annual</SelectItem>
             </SelectContent>
           </Select>
-          <Button onClick={downloadReport} variant="outline" size="sm" disabled={aggregatedReports.length === 0}>
-            <Download className="mr-2 h-4 w-4" />
-            Download Report
+          <Button onClick={downloadPdfReport} variant="outline" size="sm" disabled={aggregatedReports.length === 0}>
+            <FileText className="mr-2 h-4 w-4" />
+            Download PDF
           </Button>
         </div>
 
@@ -240,8 +284,8 @@ export function ReportsDashboard() {
                   <TableCell className="font-medium">{report.period}</TableCell>
                   <TableCell className="text-center">{report.totalVisits}</TableCell>
                   <TableCell className="text-center">{report.averageScore.toFixed(1)}</TableCell>
-                   <TableCell className="text-xs">{report.highestScoreSite}</TableCell>
-                  <TableCell className="text-xs">{report.lowestScoreSite}</TableCell>
+                   <TableCell className="text-xs truncate max-w-[150px] sm:max-w-[200px]" title={report.highestScoreSite || 'N/A'}>{report.highestScoreSite}</TableCell>
+                   <TableCell className="text-xs truncate max-w-[150px] sm:max-w-[200px]" title={report.lowestScoreSite || 'N/A'}>{report.lowestScoreSite}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
