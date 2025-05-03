@@ -33,46 +33,42 @@ export function ReportsDashboard() {
   const [aggregatedReports, setAggregatedReports] = useState<AggregatedReport[]>([]);
   const { toast } = useToast();
 
-  // Load data from local storage on mount
-  useEffect(() => {
+  // Function to handle storage changes and update state
+   const handleStorageChange = useCallback(() => {
     try {
       const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
       if (storedData) {
-        setReportData(JSON.parse(storedData));
+        const parsedData = JSON.parse(storedData);
+        setReportData(parsedData);
+        console.log("ReportsDashboard: Storage change detected, data reloaded.");
+      } else {
+         setReportData([]); // Clear data if storage is empty
+         console.log("ReportsDashboard: Storage change detected, data cleared.");
       }
     } catch (error) {
-      console.error("Failed to load report data from local storage:", error);
+      console.error("Failed to load report data from local storage on change:", error);
       toast({
         title: "Error Loading Data",
-        description: "Could not load past report data.",
+        description: "Could not load updated report data.",
         variant: "destructive",
       });
     }
-  }, [toast]);
+   }, [toast]);
 
-  // --- MOCK FUNCTION TO ADD DATA (Replace with actual integration) ---
-  const addMockData = () => {
-    const now = Date.now();
-    const mockEntry: ReportEntry = {
-      timestamp: now,
-      websiteUrl: `example.com/${Math.random().toString(36).substring(7)}`,
-      carbonScore: Math.random(), // Random score between 0 and 1
+
+  // Load data from local storage on mount and listen for changes
+  useEffect(() => {
+    handleStorageChange(); // Initial load
+
+    // Add listener for storage events from other tabs/windows or background script
+    window.addEventListener('storage', handleStorageChange);
+
+    // Cleanup listener on component unmount
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
     };
-    const updatedData = [...reportData, mockEntry];
-    setReportData(updatedData);
-    try {
-      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedData));
-       toast({ title: "Mock Data Added", description: "A new entry was simulated." });
-    } catch (error) {
-        console.error("Failed to save report data to local storage:", error);
-        toast({
-            title: "Error Saving Data",
-            description: "Could not save the new report entry.",
-            variant: "destructive",
-        });
-    }
-  };
-   // --- END MOCK FUNCTION ---
+  }, [handleStorageChange]); // Depend on the memoized handler
+
 
   const aggregateData = useCallback((data: ReportEntry[], selectedTimeframe: 'weekly' | 'monthly' | 'annual'): AggregatedReport[] => {
     const aggregated: { [key: string]: { entries: ReportEntry[], totalScore: number } } = {};
@@ -186,6 +182,8 @@ export function ReportsDashboard() {
         setAggregatedReports([]);
         try {
             localStorage.removeItem(LOCAL_STORAGE_KEY);
+            // Dispatch storage event manually to notify other components (like page.tsx)
+            window.dispatchEvent(new StorageEvent('storage', { key: LOCAL_STORAGE_KEY, newValue: null }));
             toast({ title: "Data Cleared", description: "All historical report data has been removed." });
         } catch (error) {
             console.error("Failed to clear local storage:", error);
@@ -205,10 +203,7 @@ export function ReportsDashboard() {
             <CardTitle>Statistical Reports</CardTitle>
             <CardDescription>Your browsing energy consumption overview.</CardDescription>
          </div>
-         {/* Mock Button */}
-         {process.env.NODE_ENV === 'development' && (
-            <Button onClick={addMockData} size="sm" variant="outline">Add Mock Entry</Button>
-         )}
+         {/* Removed Mock Button */}
       </CardHeader>
       <CardContent>
         <div className="flex justify-between items-center mb-4">
@@ -255,7 +250,7 @@ export function ReportsDashboard() {
           <div className="text-center py-10 text-muted-foreground">
             <BarChart className="mx-auto h-12 w-12 mb-2" />
             <p>No report data available for the selected timeframe.</p>
-            <p className="text-xs">Keep browsing to generate reports.</p>
+            <p className="text-xs">Analyze websites to generate reports.</p>
           </div>
         )}
       </CardContent>

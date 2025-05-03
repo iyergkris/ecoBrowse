@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EcoScoreDisplay } from "@/components/eco-score-display";
@@ -16,6 +16,8 @@ export default function Home() {
   const [currentUrlToAnalyze, setCurrentUrlToAnalyze] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [footprintData, setFootprintData] = useState<WebsiteCarbonFootprint | null>(null);
+  // Add state to force re-render of ReportsDashboard if needed, although listening to storage event might be better
+  const [reportUpdateTrigger, setReportUpdateTrigger] = useState<number>(0);
   const { toast } = useToast();
 
   const handleAnalyze = useCallback(async () => {
@@ -35,7 +37,7 @@ export default function Home() {
       const data = await calculateWebsiteCarbonFootprint(formattedUrl);
       setFootprintData(data);
 
-      // Add data to reports (using local storage via the component)
+      // Add data to reports (using local storage)
       try {
           const storedData = localStorage.getItem('ecoBrowseReports');
           const reports = storedData ? JSON.parse(storedData) : [];
@@ -46,8 +48,11 @@ export default function Home() {
           };
           reports.push(newEntry);
           localStorage.setItem('ecoBrowseReports', JSON.stringify(reports));
-          // Force update reports dashboard if needed - this might require lifting state or using a context/event bus
-          window.dispatchEvent(new Event('storage')); // Basic way to notify other components listening to storage event
+          // Dispatch a storage event to notify other components (like ReportsDashboard)
+          window.dispatchEvent(new StorageEvent('storage', { key: 'ecoBrowseReports', newValue: JSON.stringify(reports) }));
+           // Alternatively, or additionally, trigger state update if direct notification is preferred
+           setReportUpdateTrigger(Date.now()); // Update trigger state
+
       } catch (storageError) {
           console.error("Failed to save report data:", storageError);
           // Optionally notify user, but avoid disrupting main flow
@@ -70,6 +75,24 @@ export default function Home() {
       setIsLoading(false); // Set loading false after analysis is done
     }
   }, [websiteUrl, isLoading, toast]);
+
+    // Effect to listen for storage changes specifically for clearing data
+    // This ensures UI consistency if data is cleared from the ReportsDashboard
+    useEffect(() => {
+        const handleStorageClear = (event: StorageEvent) => {
+            if (event.key === 'ecoBrowseReports' && event.newValue === null) {
+                 console.log("Home: Detected report data cleared, triggering UI update.");
+                // Force a state update to potentially re-render dependent components if necessary
+                // Often, the child component (ReportsDashboard) listening to storage is sufficient
+                setReportUpdateTrigger(Date.now());
+            }
+        };
+
+        window.addEventListener('storage', handleStorageClear);
+        return () => {
+            window.removeEventListener('storage', handleStorageClear);
+        };
+    }, []);
 
 
   return (
@@ -128,7 +151,8 @@ export default function Home() {
 
       {/* Reports Section */}
        <div className="pt-8">
-          <ReportsDashboard />
+          {/* Pass key to force re-render when needed, although storage listener in component is preferred */}
+          <ReportsDashboard key={reportUpdateTrigger} />
        </div>
 
     </main>
