@@ -33,7 +33,8 @@ export default function RootLayout({
 
   return (
     <html lang="en">
-       <head> {/* Use standard head tag */}
+       {/* Use standard head tag, ensure no leading/trailing whitespace inside */}
+       <head>
          {/* Add favicons using standard link tags */}
          {/* Adjust href paths based on assetPrefix for GitHub Pages compatibility */}
          <link rel="icon" href={`${assetPrefix}/icons/icon16.png`} sizes="16x16" type="image/png" />
