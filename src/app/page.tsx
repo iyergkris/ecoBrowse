@@ -69,7 +69,7 @@ export default function Home() {
       console.error("Error calculating carbon footprint:", error);
        toast({
           title: "Analysis Failed",
-          description: `Could not analyze ${formattedUrl}. Please check the URL or try again.`,
+          description: `Could not analyze ${formattedUrl}. The site might be unreachable or the URL incorrect. Please check and try again.`,
           variant: "destructive",
         });
       setCurrentUrlToAnalyze(null); // Reset on error
