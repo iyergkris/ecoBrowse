@@ -35,15 +35,12 @@ export default function RootLayout({
     <html lang="en">
        {/* Use standard head tag, ensure no leading/trailing whitespace inside */}
        <head>
-         {/* Add favicons using standard link tags */}
-         {/* Adjust href paths based on assetPrefix for GitHub Pages compatibility */}
          <link rel="icon" href={`${assetPrefix}/icons/icon16.png`} sizes="16x16" type="image/png" />
          <link rel="icon" href={`${assetPrefix}/icons/icon32.png`} sizes="32x32" type="image/png" /> {/* Common size */}
          <link rel="apple-touch-icon" href={`${assetPrefix}/icons/icon128.png`} /> {/* For iOS */}
          <meta name="viewport" content="width=device-width, initial-scale=1" /> {/* Ensure proper viewport */}
        </head>
-       {/* Remove fixed width for responsiveness */}
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}> {/* Use min-h-screen */}
+       <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}> {/* Use min-h-screen */}
         {children}
         <Toaster /> {/* Add Toaster here */}
       </body>
