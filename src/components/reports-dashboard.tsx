@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, BarChart, Trash2 } from 'lucide-react';
+import { FileText, BarChart, Trash2, TrendingUp, TrendingDown } from 'lucide-react'; // Add TrendingUp/Down
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
@@ -15,16 +15,16 @@ import autoTable from 'jspdf-autotable';
 interface ReportEntry {
   timestamp: number; // Unix timestamp
   websiteUrl: string;
-  carbonScore: number; // 0-1 scale
+  carbonScore: number; // 0-1 scale (0=worst, 1=best)
 }
 
 // Define the structure for aggregated data
 interface AggregatedReport {
   period: string; // e.g., 'Week of 2024-07-21', 'July 2024', '2024'
   totalVisits: number;
-  averageScore: number; // 0-100 scale
-  highestScoreSite: string | null; // URL (Score)
-  lowestScoreSite: string | null; // URL (Score)
+  averageScore: number; // 0-100 scale (higher is better)
+  bestScoreSite: string | null; // URL (Score) - Highest score
+  worstScoreSite: string | null; // URL (Score) - Lowest score
 }
 
 const STORAGE_KEY = 'ecoBrowseReports';
@@ -44,6 +44,7 @@ export function ReportsDashboard() {
       if (chrome && chrome.storage && chrome.storage.local) {
         chrome.storage.local.get([STORAGE_KEY], (result) => {
           const data = result[STORAGE_KEY] || [];
+           // Sort by timestamp descending (newest first) before setting state
           const sortedData = data.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
           setReportData(sortedData);
           console.log("ReportsDashboard: Loaded data from chrome.storage.local");
@@ -51,6 +52,7 @@ export function ReportsDashboard() {
       } else {
         const storedData = localStorage.getItem(STORAGE_KEY);
         const data = storedData ? JSON.parse(storedData) : [];
+        // Sort by timestamp descending (newest first) before setting state
         const sortedData = data.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
         setReportData(sortedData);
         console.log("ReportsDashboard: Loaded data from localStorage");
@@ -66,9 +68,12 @@ export function ReportsDashboard() {
   }, [toast]);
 
    // Function to handle storage changes and update state
-   const handleStorageChange = useCallback(() => {
-      console.log("ReportsDashboard: Storage change detected, reloading data.");
-      loadReportData(); // Reload data on change
+   const handleStorageChange = useCallback((event: StorageEvent | CustomEvent) => {
+      // Check if the event key matches our storage key or if it's our custom event
+     if ((event instanceof StorageEvent && event.key === STORAGE_KEY) || event.type === 'ecobrowse_report_updated' || event.type === 'ecobrowse_report_cleared') {
+        console.log("ReportsDashboard: Storage change detected, reloading data.");
+        loadReportData(); // Reload data on change
+     }
    }, [loadReportData]);
 
 
@@ -81,11 +86,15 @@ export function ReportsDashboard() {
     window.addEventListener('storage', handleStorageChange);
     // Add listener for custom event dispatched when chrome.storage changes
     window.addEventListener('ecobrowse_report_updated', handleStorageChange);
+    // Add listener for custom event dispatched when data is cleared
+     window.addEventListener('ecobrowse_report_cleared', handleStorageChange);
+
 
     // Cleanup listener on component unmount
     return () => {
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('ecobrowse_report_updated', handleStorageChange);
+      window.removeEventListener('ecobrowse_report_cleared', handleStorageChange);
     };
    }, [loadReportData, handleStorageChange]);
 
@@ -109,31 +118,40 @@ export function ReportsDashboard() {
     };
 
     data.forEach(entry => {
-      const key = getPeriodKey(entry.timestamp);
-      if (!aggregated[key]) {
-        aggregated[key] = { entries: [], totalScore: 0 };
-      }
-      aggregated[key].entries.push(entry);
-      aggregated[key].totalScore += entry.carbonScore;
+       // Ensure score is a number before processing
+       if (typeof entry.carbonScore === 'number' && !isNaN(entry.carbonScore)) {
+            const key = getPeriodKey(entry.timestamp);
+            if (!aggregated[key]) {
+                aggregated[key] = { entries: [], totalScore: 0 };
+            }
+            aggregated[key].entries.push(entry);
+            aggregated[key].totalScore += entry.carbonScore; // Sum the 0-1 scores
+       } else {
+           console.warn("Skipping invalid report entry:", entry);
+       }
     });
 
     return Object.entries(aggregated).map(([period, { entries, totalScore }]) => {
       const totalVisits = entries.length;
-      const averageScore = totalVisits > 0 ? (totalScore / totalVisits) * 100 : 0; // Scale to 0-100
+       // Calculate average score (0-1 scale), then multiply by 100 for display
+      const averageScore = totalVisits > 0 ? (totalScore / totalVisits) * 100 : 0;
 
-       let highestScore = -1;
-       let lowestScore = 2; // Start above max possible score (1)
-       let highestScoreSite: string | null = null;
-       let lowestScoreSite: string | null = null;
+       // Find best (highest score) and worst (lowest score) sites
+       let bestScore = -1; // Start below min possible score (0)
+       let worstScore = 2; // Start above max possible score (1)
+       let bestScoreSite: string | null = null;
+       let worstScoreSite: string | null = null;
 
         entries.forEach(e => {
-            if(e.carbonScore > highestScore) {
-                highestScore = e.carbonScore;
-                highestScoreSite = e.websiteUrl;
+            // Find best (highest score)
+            if(e.carbonScore > bestScore) {
+                bestScore = e.carbonScore;
+                bestScoreSite = e.websiteUrl;
             }
-             if(e.carbonScore < lowestScore) {
-                lowestScore = e.carbonScore;
-                lowestScoreSite = e.websiteUrl;
+            // Find worst (lowest score)
+             if(e.carbonScore < worstScore) {
+                worstScore = e.carbonScore;
+                worstScoreSite = e.websiteUrl;
             }
         });
 
@@ -141,8 +159,9 @@ export function ReportsDashboard() {
         period,
         totalVisits,
         averageScore,
-        highestScoreSite: highestScoreSite ? `${highestScoreSite} (${(highestScore*100).toFixed(1)})` : 'N/A',
-        lowestScoreSite: lowestScoreSite ? `${lowestScoreSite} (${(lowestScore*100).toFixed(1)})` : 'N/A' ,
+        // Format scores to 0-100 scale for display
+        bestScoreSite: bestScoreSite ? `${bestScoreSite} (${(bestScore * 100).toFixed(0)})` : 'N/A',
+        worstScoreSite: worstScoreSite ? `${worstScoreSite} (${(worstScore * 100).toFixed(0)})` : 'N/A' ,
       };
     }).sort((a, b) => {
       // Attempt to sort by date, newest first
@@ -160,7 +179,7 @@ export function ReportsDashboard() {
          }
 
          if (!isNaN(dateA.getTime()) && !isNaN(dateB.getTime())) {
-             return dateB.getTime() - dateA.getTime();
+             return dateB.getTime() - dateA.getTime(); // Newest first
          }
       } catch (e) {
           console.warn("Could not parse dates for sorting:", a.period, b.period, e);
@@ -183,18 +202,18 @@ export function ReportsDashboard() {
     }
 
     const doc = new jsPDF();
-    const tableColumns = ["Period", "Total Visits", "Avg. Score", "Highest Score Site (Score)", "Lowest Score Site (Score)"];
+    const tableColumns = ["Period", "Total Visits", "Avg. Score", "Best Site (Score)", "Worst Site (Score)"];
     const tableRows = aggregatedReports.map(report => [
         report.period,
         report.totalVisits.toString(),
-        report.averageScore.toFixed(1),
-        report.highestScoreSite || 'N/A',
-        report.lowestScoreSite || 'N/A'
+        report.averageScore.toFixed(0), // Show avg score 0-100
+        report.bestScoreSite || 'N/A',
+        report.worstScoreSite || 'N/A'
     ]);
 
     // Add Title
     doc.setFontSize(18);
-    doc.text("EcoBrowse Carbon Footprint Report", 14, 22);
+    doc.text("EcoBrowse Eco-Efficiency Report", 14, 22);
 
     // Add Subtitle (Timeframe and Generation Date)
     doc.setFontSize(11);
@@ -215,8 +234,8 @@ export function ReportsDashboard() {
            0: { cellWidth: 35 }, // Period
            1: { cellWidth: 20, halign: 'center' }, // Total Visits
            2: { cellWidth: 20, halign: 'center' }, // Avg. Score
-           3: { cellWidth: 'auto' }, // Highest Score Site
-           4: { cellWidth: 'auto' }, // Lowest Score Site
+           3: { cellWidth: 'auto' }, // Best Score Site
+           4: { cellWidth: 'auto' }, // Worst Score Site
         },
         didParseCell: function (data) {
             // Wrap text for long site names
@@ -230,7 +249,7 @@ export function ReportsDashboard() {
     const finalY = (doc as any).lastAutoTable.finalY || 45; // Get Y position after table
     doc.setFontSize(9);
     doc.setTextColor(150);
-    doc.text("Note: Scores range from 0 (best) to 100 (worst). Average score reflects the mean carbon efficiency.", 14, finalY + 10);
+    doc.text("Note: Scores range from 0 (worst) to 100 (best). Higher scores indicate better eco-efficiency.", 14, finalY + 10);
 
     // Save the PDF
     doc.save(`EcoBrowse_Report_${timeframe}_${new Date().toISOString().split('T')[0]}.pdf`);
@@ -239,25 +258,39 @@ export function ReportsDashboard() {
   };
 
    const clearAllData = () => {
+        // Optimistically update UI
+        const oldReportData = reportData;
         setReportData([]);
         setAggregatedReports([]);
+
         try {
             if (chrome && chrome.storage && chrome.storage.local) {
                 chrome.storage.local.remove(STORAGE_KEY, () => {
-                    console.log("Cleared data from chrome.storage.local");
-                    // Dispatch custom event to notify other components
-                     window.dispatchEvent(new CustomEvent('ecobrowse_report_cleared'));
-                     toast({ title: "Data Cleared", description: "All historical report data has been removed." });
+                    if (chrome.runtime.lastError) {
+                         console.error("Error clearing chrome.storage.local:", chrome.runtime.lastError);
+                         // Revert UI changes on error
+                         setReportData(oldReportData);
+                         setAggregatedReports(aggregateData(oldReportData, timeframe));
+                         toast({ title: "Error", description: "Could not clear data from storage.", variant: "destructive" });
+                    } else {
+                        console.log("Cleared data from chrome.storage.local");
+                        // Dispatch custom event to notify other components (like page.tsx)
+                        window.dispatchEvent(new CustomEvent('ecobrowse_report_cleared'));
+                        toast({ title: "Data Cleared", description: "All historical report data has been removed." });
+                    }
                 });
             } else {
                 localStorage.removeItem(STORAGE_KEY);
                  console.log("Cleared data from localStorage");
                 // Dispatch storage event manually to notify other components (like page.tsx)
-                window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null }));
+                window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null, storageArea: localStorage }));
                 toast({ title: "Data Cleared", description: "All historical report data has been removed." });
             }
 
         } catch (error) {
+             // Revert UI changes on error
+             setReportData(oldReportData);
+             setAggregatedReports(aggregateData(oldReportData, timeframe));
             console.error("Failed to clear storage:", error);
             toast({
                 title: "Error Clearing Data",
@@ -269,7 +302,26 @@ export function ReportsDashboard() {
 
     // Prevent rendering server-side or before client check
     if (!isClient) {
-        return null; // Or a loading skeleton
+        // Render a simple loading skeleton or placeholder
+         return (
+             <Card className="w-full">
+                 <CardHeader>
+                     <CardTitle>Statistical Reports</CardTitle>
+                     <CardDescription>Loading report data...</CardDescription>
+                 </CardHeader>
+                 <CardContent>
+                     <div className="h-40 flex items-center justify-center text-muted-foreground">
+                         <Loader2 className="h-8 w-8 animate-spin" />
+                     </div>
+                 </CardContent>
+                 <CardFooter className="flex justify-end">
+                    <Button variant="destructive" size="sm" disabled>
+                         <Trash2 className="mr-2 h-4 w-4" />
+                         Clear All Data
+                     </Button>
+                 </CardFooter>
+             </Card>
+         );
     }
 
 
@@ -278,11 +330,12 @@ export function ReportsDashboard() {
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
          <div>
             <CardTitle>Statistical Reports</CardTitle>
-            <CardDescription>Your browsing energy consumption overview.</CardDescription>
+             {/* Update description to reflect higher = better */}
+            <CardDescription>Your browsing eco-efficiency overview.</CardDescription>
          </div>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex justify-between items-center mb-4 gap-2 flex-wrap">
           <Select value={timeframe} onValueChange={(value: 'weekly' | 'monthly' | 'annual') => setTimeframe(value)}>
             <SelectTrigger className="w-[180px]">
               <SelectValue placeholder="Select timeframe" />
@@ -300,28 +353,45 @@ export function ReportsDashboard() {
         </div>
 
         {aggregatedReports.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Period</TableHead>
-                <TableHead className="text-center">Total Visits</TableHead>
-                <TableHead className="text-center">Avg. Score</TableHead>
-                <TableHead>Highest Score Site</TableHead>
-                 <TableHead>Lowest Score Site</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {aggregatedReports.map((report) => (
-                <TableRow key={report.period}>
-                  <TableCell className="font-medium">{report.period}</TableCell>
-                  <TableCell className="text-center">{report.totalVisits}</TableCell>
-                  <TableCell className="text-center">{report.averageScore.toFixed(1)}</TableCell>
-                   <TableCell className="text-xs truncate max-w-[150px] sm:max-w-[200px]" title={report.highestScoreSite || 'N/A'}>{report.highestScoreSite}</TableCell>
-                   <TableCell className="text-xs truncate max-w-[150px] sm:max-w-[200px]" title={report.lowestScoreSite || 'N/A'}>{report.lowestScoreSite}</TableCell>
+          <div className="overflow-x-auto">
+            <Table>
+                <TableHeader>
+                <TableRow>
+                    <TableHead>Period</TableHead>
+                    <TableHead className="text-center">Visits</TableHead>
+                    <TableHead className="text-center">Avg. Score</TableHead>
+                    {/* Update headers */}
+                    <TableHead>
+                        <div className="flex items-center gap-1">
+                            <TrendingUp className="h-4 w-4 text-green-600"/> Best Site
+                        </div>
+                    </TableHead>
+                    <TableHead>
+                        <div className="flex items-center gap-1">
+                            <TrendingDown className="h-4 w-4 text-destructive"/> Worst Site
+                        </div>
+                    </TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                </TableHeader>
+                <TableBody>
+                {aggregatedReports.map((report) => (
+                    <TableRow key={report.period}>
+                    <TableCell className="font-medium whitespace-nowrap">{report.period}</TableCell>
+                    <TableCell className="text-center">{report.totalVisits}</TableCell>
+                    {/* Display average score 0-100 */}
+                    <TableCell className="text-center font-semibold">{report.averageScore.toFixed(0)}</TableCell>
+                    {/* Update cells for best/worst sites */}
+                    <TableCell className="text-xs truncate max-w-[150px] sm:max-w-[200px] whitespace-nowrap" title={report.bestScoreSite || 'N/A'}>
+                         {report.bestScoreSite || 'N/A'}
+                    </TableCell>
+                    <TableCell className="text-xs truncate max-w-[150px] sm:max-w-[200px] whitespace-nowrap" title={report.worstScoreSite || 'N/A'}>
+                         {report.worstScoreSite || 'N/A'}
+                    </TableCell>
+                    </TableRow>
+                ))}
+                </TableBody>
+            </Table>
+           </div>
         ) : (
           <div className="text-center py-10 text-muted-foreground">
             <BarChart className="mx-auto h-12 w-12 mb-2" />
@@ -330,7 +400,7 @@ export function ReportsDashboard() {
           </div>
         )}
       </CardContent>
-       <CardFooter className="flex justify-end">
+       <CardFooter className="flex justify-end pt-4">
             <AlertDialog>
                 <AlertDialogTrigger asChild>
                      {/* Disable clear button if no data exists */}
@@ -344,7 +414,7 @@ export function ReportsDashboard() {
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
                             This action cannot be undone. This will permanently delete all
-                            your browsing report history stored locally.
+                            your browsing report history stored locally by this extension.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>

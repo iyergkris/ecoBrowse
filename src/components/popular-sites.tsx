@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { calculateWebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
-import { Globe, AlertCircle } from 'lucide-react';
+import { Globe, AlertCircle, Loader2 } from 'lucide-react'; // Added Loader2
 
 // List of popular websites (Top 10 based on general knowledge, adjust as needed)
 const POPULAR_WEBSITES = [
@@ -23,7 +23,7 @@ const POPULAR_WEBSITES = [
 
 interface SiteScoreData {
   url: string;
-  score: number | null; // 0-100 scale
+  score: number | null; // 0-100 scale (Now higher is better)
   error: boolean;
 }
 
@@ -40,7 +40,8 @@ export function PopularSites() {
         try {
           const fullUrl = `https://${url}`; // Ensure protocol for analysis
           const data = await calculateWebsiteCarbonFootprint(fullUrl);
-          return { url, score: Math.round(data.carbonFootprintScore * 100), error: false }; // Scale to 0-100
+          // Score is now 0-1 (higher=better), scale to 0-100
+          return { url, score: Math.round(data.carbonFootprintScore * 100), error: false };
         } catch (error) {
           console.error(`Error fetching score for ${url}:`, error);
           return { url, score: null, error: true };
@@ -48,15 +49,15 @@ export function PopularSites() {
       });
 
       const results = await Promise.all(scorePromises);
-      // Sort by score (lowest first), errors at the end
+      // Sort by score (highest first - better), errors at the end
       results.sort((a, b) => {
         if (a.error && b.error) return 0;
-        if (a.error) return 1;
-        if (b.error) return -1;
+        if (a.error) return 1; // Errors go last
+        if (b.error) return -1; // Errors go last
         if (a.score === null && b.score === null) return 0;
-        if (a.score === null) return 1;
-        if (b.score === null) return -1;
-        return a.score - b.score;
+        if (a.score === null) return 1; // Nulls (shouldn't happen if no error) go last
+        if (b.score === null) return -1; // Nulls go last
+        return b.score - a.score; // Higher score first
       });
       setSiteScores(results);
       setIsLoading(false);
@@ -68,18 +69,20 @@ export function PopularSites() {
   const renderScore = (data: SiteScoreData) => {
     if (data.error) {
       return (
-        <span className="text-destructive flex items-center text-xs">
+        <span className="text-destructive flex items-center text-xs justify-end">
           <AlertCircle className="mr-1 h-3 w-3" /> Error
         </span>
       );
     }
     if (data.score === null) {
-       return <span className="text-muted-foreground text-xs">N/A</span>;
+       return <span className="text-muted-foreground text-xs text-right">N/A</span>;
     }
 
-    let scoreColor = 'text-destructive'; // Default to red (high score = bad)
-    if (data.score <= 33) scoreColor = 'text-green-600'; // Use specific color for better contrast
-    else if (data.score <= 66) scoreColor = 'text-yellow-600'; // Use specific color
+    // Colors now reflect: High score = Green, Low score = Red
+    let scoreColor = 'text-destructive'; // Default to red (low score = bad)
+    if (data.score >= 67) scoreColor = 'text-green-600'; // 67-100 = Good (Green)
+    else if (data.score >= 34) scoreColor = 'text-yellow-600'; // 34-66 = Moderate (Yellow)
+    // 0-33 = Poor (Red)
 
     return <span className={`font-medium ${scoreColor}`}>{data.score}</span>;
   };
@@ -92,7 +95,7 @@ export function PopularSites() {
           Popular Websites Eco-Scores
         </CardTitle>
         <CardDescription>
-          Estimated carbon footprint scores for some of the web's most visited sites (Lower is better).
+          Estimated eco-efficiency scores for some popular sites (Higher is better).
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -122,6 +125,12 @@ export function PopularSites() {
                 ))}
           </TableBody>
         </Table>
+         {isLoading && (
+             <div className="flex items-center justify-center mt-4 text-muted-foreground text-sm">
+                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                 Loading scores...
+             </div>
+         )}
          {!isLoading && siteScores.some(s => s.error) && (
             <p className="text-xs text-muted-foreground mt-3 flex items-center">
               <AlertCircle className="mr-1 h-3 w-3" />

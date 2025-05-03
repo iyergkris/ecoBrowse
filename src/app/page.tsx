@@ -11,6 +11,7 @@ import { calculateWebsiteCarbonFootprint } from '@/services/website-carbon-footp
 import type { WebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
 import { Loader2, Search, Leaf } from 'lucide-react'; // Import Leaf
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
 export default function Home() {
   const [websiteUrl, setWebsiteUrl] = useState<string>('');
@@ -20,6 +21,12 @@ export default function Home() {
   // Add state to force re-render of ReportsDashboard if needed, although listening to storage event might be better
   const [reportUpdateTrigger, setReportUpdateTrigger] = useState<number>(0);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false); // Track client-side rendering
+
+  // Set client state on mount
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleAnalyze = useCallback(async () => {
     if (!websiteUrl || isLoading) return;
@@ -38,67 +45,131 @@ export default function Home() {
       const data = await calculateWebsiteCarbonFootprint(formattedUrl);
       setFootprintData(data);
 
-      // Add data to reports (using local storage)
-      try {
-          const storedData = localStorage.getItem('ecoBrowseReports');
-          const reports = storedData ? JSON.parse(storedData) : [];
-          const newEntry = {
-              timestamp: Date.now(),
-              websiteUrl: formattedUrl,
-              carbonScore: data.carbonFootprintScore, // Assuming this is the 0-1 score
-          };
-          reports.push(newEntry);
-          localStorage.setItem('ecoBrowseReports', JSON.stringify(reports));
-          // Dispatch a storage event to notify other components (like ReportsDashboard)
-          window.dispatchEvent(new StorageEvent('storage', { key: 'ecoBrowseReports', newValue: JSON.stringify(reports) }));
-           // Alternatively, or additionally, trigger state update if direct notification is preferred
-           setReportUpdateTrigger(Date.now()); // Update trigger state
+      // Add data to reports (using local storage or chrome.storage)
+       try {
+            const newEntry = {
+                timestamp: Date.now(),
+                websiteUrl: formattedUrl,
+                carbonScore: data.carbonFootprintScore, // Use the 0-1 score (higher is better)
+            };
 
-      } catch (storageError) {
-          console.error("Failed to save report data:", storageError);
-          // Optionally notify user, but avoid disrupting main flow
-      }
+            if (chrome && chrome.storage && chrome.storage.local) {
+                 // Use chrome.storage.local if available
+                chrome.storage.local.get([STORAGE_KEY], (result) => {
+                    const reports = result[STORAGE_KEY] || [];
+                    reports.push(newEntry);
+                     chrome.storage.local.set({ [STORAGE_KEY]: reports }, () => {
+                         if (chrome.runtime.lastError) {
+                             console.error("Error saving report to chrome.storage:", chrome.runtime.lastError);
+                         } else {
+                             console.log('Report saved to chrome.storage.local');
+                             // Dispatch custom event for components listening to chrome.storage changes
+                              window.dispatchEvent(new CustomEvent('ecobrowse_report_updated'));
+                         }
+                     });
+                 });
+             } else {
+                 // Fallback to localStorage
+                const storedData = localStorage.getItem(STORAGE_KEY);
+                const reports = storedData ? JSON.parse(storedData) : [];
+                reports.push(newEntry);
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+                // Dispatch standard storage event for components listening to localStorage changes
+                window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: JSON.stringify(reports), storageArea: localStorage }));
+             }
+
+            // Trigger state update in this component if necessary (though listening components are preferred)
+            setReportUpdateTrigger(Date.now());
+
+       } catch (storageError) {
+            console.error("Failed to save report data:", storageError);
+           // Optionally notify user
+            toast({
+                title: "Storage Error",
+                description: "Could not save the analysis result to your reports.",
+                variant: "destructive",
+            });
+       }
+
 
        toast({
           title: "Analysis Complete",
-          description: `Footprint calculated for ${formattedUrl}`,
+          description: `Eco-Efficiency score calculated for ${formattedUrl}`,
         });
 
     } catch (error) {
       console.error("Error calculating carbon footprint:", error);
        toast({
           title: "Analysis Failed",
-          description: `Could not analyze ${formattedUrl}. The site might be unreachable or the URL incorrect. Please check and try again.`,
+          description: error instanceof Error ? error.message : `Could not analyze ${formattedUrl}. Please check the URL and try again.`,
           variant: "destructive",
         });
       setCurrentUrlToAnalyze(null); // Reset on error
     } finally {
       setIsLoading(false); // Set loading false after analysis is done
     }
-  }, [websiteUrl, isLoading, toast]);
+  }, [websiteUrl, isLoading, toast]); // Removed reportUpdateTrigger dependency, rely on events
 
     // Effect to listen for storage changes specifically for clearing data
     // This ensures UI consistency if data is cleared from the ReportsDashboard
     useEffect(() => {
-        const handleStorageClear = (event: StorageEvent) => {
-            if (event.key === 'ecoBrowseReports' && event.newValue === null) {
+        const handleStorageClear = (event: StorageEvent | CustomEvent) => {
+            // Listen for standard storage event with null newValue or our custom clear event
+            if ((event instanceof StorageEvent && event.key === STORAGE_KEY && event.newValue === null) || event.type === 'ecobrowse_report_cleared') {
                  console.log("Home: Detected report data cleared, triggering UI update.");
-                // Force a state update to potentially re-render dependent components if necessary
-                // Often, the child component (ReportsDashboard) listening to storage is sufficient
-                setReportUpdateTrigger(Date.now());
+                 // Force a state update to potentially re-render dependent components if necessary
+                 setReportUpdateTrigger(Date.now());
             }
         };
 
         window.addEventListener('storage', handleStorageClear);
+        window.addEventListener('ecobrowse_report_cleared', handleStorageClear); // Listen for custom clear event
         return () => {
             window.removeEventListener('storage', handleStorageClear);
+            window.removeEventListener('ecobrowse_report_cleared', handleStorageClear);
         };
-    }, []);
+    }, []); // Empty dependency array
+
+
+    // Conditionally render skeleton or actual content based on client state
+    if (!isClient) {
+      return (
+         <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8 min-h-screen">
+             <header className="text-center space-y-3">
+                <Skeleton className="h-8 w-32 inline-block rounded-full" />
+                <Skeleton className="h-10 w-3/4 mx-auto" />
+                <Skeleton className="h-4 w-1/2 mx-auto" />
+                <Skeleton className="h-4 w-2/3 mx-auto" />
+            </header>
+             <div className="flex flex-col sm:flex-row items-center gap-3 max-w-lg mx-auto p-2 bg-card rounded-lg shadow">
+                 <Skeleton className="h-10 flex-grow rounded-md" />
+                 <Skeleton className="h-10 w-28 rounded-md" />
+             </div>
+             {/* Skeleton for potential results */}
+             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-card/50 rounded-lg border border-border/50">
+                 <Skeleton className="h-32 w-full rounded-lg" />
+                 <Skeleton className="h-48 w-full rounded-lg" />
+             </div>
+             {/* Skeleton for reports */}
+             <div className="pt-8">
+                <Skeleton className="h-64 w-full rounded-lg" />
+             </div>
+             {/* Skeleton for popular sites */}
+             <div className="pt-8">
+                 <Skeleton className="h-96 w-full rounded-lg" />
+             </div>
+            <footer className="text-center text-xs text-muted-foreground pt-6">
+                <Skeleton className="h-4 w-48 mx-auto" />
+            </footer>
+         </main>
+      );
+    }
 
 
   return (
     // Apply max-width for larger screens, mx-auto for centering
     // Add subtle background texture/gradient if desired
+    // Define STORAGE_KEY locally or import if defined elsewhere
     <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8 bg-gradient-to-br from-background to-secondary/30 min-h-screen">
       <header className="text-center space-y-3">
          {/* Enhanced Header Styling */}
@@ -107,9 +178,9 @@ export default function Home() {
              <Leaf className="h-5 w-5" />
             <span>EcoBrowse</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">Website Carbon Footprint Analyzer</h1>
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">Website Eco-Efficiency Analyzer</h1>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          Enter a website URL to check its estimated carbon footprint score and browse greener.
+          Enter a website URL to check its estimated eco-efficiency score (higher is better) and browse greener.
         </p>
       </header>
 
@@ -123,11 +194,12 @@ export default function Home() {
               setWebsiteUrl(e.target.value);
               setCurrentUrlToAnalyze(null); // Clear analysis state if URL changes
               setFootprintData(null);
-              setIsLoading(false);
+              // No need to set isLoading here, handleAnalyze does it
           }}
           onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
           className="flex-grow border-muted focus:border-primary focus:ring-primary" // Adjusted styling
           aria-label="Website URL Input"
+           disabled={isLoading} // Disable input while loading
         />
         <Button onClick={handleAnalyze} disabled={isLoading || !websiteUrl} className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
           {isLoading ? (
@@ -140,12 +212,12 @@ export default function Home() {
       </div>
 
       {/* Results Section */}
-      {(isLoading || footprintData || currentUrlToAnalyze) && (
+      {(isLoading || footprintData) && ( // Show section if loading or data exists
           // Use grid layout with responsiveness: 1 column on small screens, 2 on medium+
           // Added subtle border/background to group results
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-card/50 rounded-lg border border-border/50">
-            {/* Score Display */}
-            <EcoScoreDisplay score={footprintData?.carbonFootprintScore ?? (isLoading ? -1 : 0)} />
+            {/* Score Display - Pass score or -1 for loading */}
+            <EcoScoreDisplay score={isLoading ? -1 : (footprintData?.carbonFootprintScore ?? 0)} />
 
             {/* Footprint Details */}
             <FootprintDetails details={footprintData} isLoading={isLoading} />
@@ -156,7 +228,7 @@ export default function Home() {
 
       {/* Reports Section */}
        <div className="pt-8">
-          {/* Pass key to force re-render when needed, although storage listener in component is preferred */}
+          {/* Pass key to potentially force re-render, though component manages its own state */}
           <ReportsDashboard key={reportUpdateTrigger} />
        </div>
 
@@ -173,3 +245,6 @@ export default function Home() {
     </main>
   );
 }
+
+// Define STORAGE_KEY if it's not imported
+const STORAGE_KEY = 'ecoBrowseReports';
