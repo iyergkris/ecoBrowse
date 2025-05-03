@@ -3,31 +3,32 @@
 @tailwind utilities;
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+   /* Use a slightly softer, more readable font */
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
 }
 
 @layer base {
   :root {
-    /* Light Theme - EcoBrowse */
-    --background: 0 0% 88%; /* Light Gray #E0E0E0 */
-    --foreground: 0 0% 15%; /* Dark Gray for text */
+    /* Light Theme - EcoBrowse Refined */
+    --background: 45 30% 96%; /* Lighter, slightly warmer off-white */
+    --foreground: 215 25% 25%; /* Softer dark gray/blue for text */
     --card: 0 0% 100%; /* White cards */
-    --card-foreground: 0 0% 15%;
+    --card-foreground: 215 25% 25%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 15%;
-    --primary: 174 100% 29%; /* Teal #009688 */
+    --popover-foreground: 215 25% 25%;
+    --primary: 150 60% 40%; /* Softer Green - HSL adjusted from Teal */
     --primary-foreground: 0 0% 100%; /* White */
-    --secondary: 0 0% 96.1%; /* Slightly off-white */
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 90%; /* Muted gray */
-    --muted-foreground: 0 0% 45.1%;
-    --accent: 174 100% 35%; /* Lighter Teal for hover/accent */
+    --secondary: 150 20% 94%; /* Very light green-tinted gray */
+    --secondary-foreground: 215 15% 35%;
+    --muted: 210 20% 90%; /* Muted slightly blueish gray */
+    --muted-foreground: 210 10% 50%;
+    --accent: 150 60% 50%; /* Brighter Green for hover/accent */
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 70% 55%; /* Keep destructive noticeable */
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 80%; /* Slightly darker border */
-    --input: 0 0% 95%; /* Input background */
-    --ring: 174 100% 29%; /* Teal for focus rings */
+    --border: 210 20% 85%; /* Softer border color */
+    --input: 0 0% 98%; /* Slightly off-white input background */
+    --ring: 150 60% 50%; /* Green for focus rings */
     --chart-1: 120 70% 40%; /* Green for charts/good score */
     --chart-2: 60 70% 45%; /* Yellow */
     --chart-3: 30 80% 55%; /* Orange */
@@ -36,50 +37,50 @@ body {
     --radius: 0.5rem;
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 174 100% 29%;
+    --sidebar-primary: 150 60% 40%; /* Sidebar primary to match main */
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 100% 90%;
-    --sidebar-accent-foreground: 174 100% 20%;
+    --sidebar-accent: 150 60% 90%; /* Lighter green accent */
+    --sidebar-accent-foreground: 150 60% 20%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 174 100% 29%;
+    --sidebar-ring: 150 60% 50%; /* Sidebar ring to match main */
      /* Default progress color */
     --progress-color: hsl(var(--primary));
   }
 
   .dark {
-    /* Dark Theme - Optional (Using defaults for now) */
-    --background: 0 0% 3.9%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 3.9%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 3.9%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 174 100% 35%; /* Teal */
+    /* Dark Theme - EcoBrowse Refined */
+    --background: 210 15% 10%; /* Dark blue/gray background */
+    --foreground: 210 20% 95%; /* Light gray/off-white text */
+    --card: 210 15% 15%; /* Slightly lighter card background */
+    --card-foreground: 210 20% 95%;
+    --popover: 210 15% 15%;
+    --popover-foreground: 210 20% 95%;
+    --primary: 150 60% 50%; /* Vibrant Green */
     --primary-foreground: 0 0% 100%;
-    --secondary: 0 0% 14.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 14.9%;
-    --muted-foreground: 0 0% 63.9%;
-    --accent: 174 100% 29%; /* Darker Teal */
+    --secondary: 210 15% 25%; /* Darker secondary */
+    --secondary-foreground: 210 20% 85%;
+    --muted: 210 15% 25%;
+    --muted-foreground: 210 10% 65%;
+    --accent: 150 60% 60%; /* Lighter Green accent */
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62.8% 30.6%;
+    --destructive: 0 60% 50%; /* Darker destructive */
     --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 14.9%;
-    --input: 0 0% 14.9%;
-    --ring: 174 100% 35%;
+    --border: 210 15% 30%; /* Softer border */
+    --input: 210 15% 20%; /* Darker input */
+    --ring: 150 60% 60%; /* Lighter Green ring */
     --chart-1: 120 70% 50%; /* Green */
     --chart-2: 60 70% 55%; /* Yellow */
     --chart-3: 30 80% 65%; /* Orange */
     --chart-4: 0 70% 60%; /* Red */
     --chart-5: 210 75% 65%; /* Blue */
-     --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 174 100% 35%;
+     --sidebar-background: 210 15% 12%; /* Dark sidebar */
+    --sidebar-foreground: 210 20% 90%;
+    --sidebar-primary: 150 60% 50%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 174 100% 15%;
+    --sidebar-accent: 150 60% 25%; /* Darker green accent */
     --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 174 100% 35%;
+    --sidebar-border: 210 15% 25%;
+    --sidebar-ring: 150 60% 60%;
       /* Default progress color */
     --progress-color: hsl(var(--primary));
   }
@@ -104,5 +105,13 @@ body {
 @layer components {
     .progress-indicator-colored > div {
        background-color: var(--progress-color, hsl(var(--primary)));
+    }
+
+    /* Subtle global card hover effect */
+    .card {
+        @apply transition-all duration-200 ease-in-out;
+    }
+     .card:hover {
+        @apply shadow-lg border-border/80; /* Slightly more prominent shadow and border on hover */
     }
 }

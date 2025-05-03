@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { FileText, BarChart, Trash2 } from 'lucide-react'; // Changed icon from Download to FileText
+import { FileText, BarChart, Trash2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from '@/hooks/use-toast';
@@ -27,51 +27,67 @@ interface AggregatedReport {
   lowestScoreSite: string | null; // URL (Score)
 }
 
-const LOCAL_STORAGE_KEY = 'ecoBrowseReports';
+const STORAGE_KEY = 'ecoBrowseReports';
 
 export function ReportsDashboard() {
   const [reportData, setReportData] = useState<ReportEntry[]>([]);
   const [timeframe, setTimeframe] = useState<'weekly' | 'monthly' | 'annual'>('weekly');
   const [aggregatedReports, setAggregatedReports] = useState<AggregatedReport[]>([]);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false); // State to track client-side rendering
 
-  // Function to handle storage changes and update state
-   const handleStorageChange = useCallback(() => {
+  // Function to load data, checking for chrome.storage first
+  const loadReportData = useCallback(async () => {
+     if (typeof window === 'undefined') return; // Don't run on server
+
     try {
-      const storedData = localStorage.getItem(LOCAL_STORAGE_KEY);
-      if (storedData) {
-        const parsedData = JSON.parse(storedData);
-        // Sort raw data by timestamp, newest first before setting state
-        const sortedData = parsedData.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
-        setReportData(sortedData);
-        console.log("ReportsDashboard: Storage change detected, data reloaded and sorted.");
+      if (chrome && chrome.storage && chrome.storage.local) {
+        chrome.storage.local.get([STORAGE_KEY], (result) => {
+          const data = result[STORAGE_KEY] || [];
+          const sortedData = data.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
+          setReportData(sortedData);
+          console.log("ReportsDashboard: Loaded data from chrome.storage.local");
+        });
       } else {
-         setReportData([]); // Clear data if storage is empty
-         console.log("ReportsDashboard: Storage change detected, data cleared.");
+        const storedData = localStorage.getItem(STORAGE_KEY);
+        const data = storedData ? JSON.parse(storedData) : [];
+        const sortedData = data.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
+        setReportData(sortedData);
+        console.log("ReportsDashboard: Loaded data from localStorage");
       }
     } catch (error) {
-      console.error("Failed to load report data from local storage on change:", error);
+      console.error("Failed to load report data:", error);
       toast({
         title: "Error Loading Data",
-        description: "Could not load updated report data.",
+        description: "Could not load report data.",
         variant: "destructive",
       });
     }
-   }, [toast]);
+  }, [toast]);
+
+   // Function to handle storage changes and update state
+   const handleStorageChange = useCallback(() => {
+      console.log("ReportsDashboard: Storage change detected, reloading data.");
+      loadReportData(); // Reload data on change
+   }, [loadReportData]);
 
 
-  // Load data from local storage on mount and listen for changes
-  useEffect(() => {
-    handleStorageChange(); // Initial load
+  // Load data on mount and listen for changes
+   useEffect(() => {
+    setIsClient(true); // Set client state to true once mounted
+    loadReportData(); // Initial load
 
     // Add listener for storage events from other tabs/windows or background script
     window.addEventListener('storage', handleStorageChange);
+    // Add listener for custom event dispatched when chrome.storage changes
+    window.addEventListener('ecobrowse_report_updated', handleStorageChange);
 
     // Cleanup listener on component unmount
     return () => {
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('ecobrowse_report_updated', handleStorageChange);
     };
-  }, [handleStorageChange]); // Depend on the memoized handler
+   }, [loadReportData, handleStorageChange]);
 
 
   const aggregateData = useCallback((data: ReportEntry[], selectedTimeframe: 'weekly' | 'monthly' | 'annual'): AggregatedReport[] => {
@@ -193,7 +209,7 @@ export function ReportsDashboard() {
         head: [tableColumns],
         body: tableRows,
         theme: 'striped', // 'striped', 'grid', 'plain'
-        headStyles: { fillColor: [0, 150, 136] }, // Teal header color matching theme
+        headStyles: { fillColor: [77, 175, 100] }, // Updated primary color HSL(150, 60%, 40%) approx RGB
         styles: { fontSize: 8 },
         columnStyles: {
            0: { cellWidth: 35 }, // Period
@@ -226,12 +242,23 @@ export function ReportsDashboard() {
         setReportData([]);
         setAggregatedReports([]);
         try {
-            localStorage.removeItem(LOCAL_STORAGE_KEY);
-            // Dispatch storage event manually to notify other components (like page.tsx)
-            window.dispatchEvent(new StorageEvent('storage', { key: LOCAL_STORAGE_KEY, newValue: null }));
-            toast({ title: "Data Cleared", description: "All historical report data has been removed." });
+            if (chrome && chrome.storage && chrome.storage.local) {
+                chrome.storage.local.remove(STORAGE_KEY, () => {
+                    console.log("Cleared data from chrome.storage.local");
+                    // Dispatch custom event to notify other components
+                     window.dispatchEvent(new CustomEvent('ecobrowse_report_cleared'));
+                     toast({ title: "Data Cleared", description: "All historical report data has been removed." });
+                });
+            } else {
+                localStorage.removeItem(STORAGE_KEY);
+                 console.log("Cleared data from localStorage");
+                // Dispatch storage event manually to notify other components (like page.tsx)
+                window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null }));
+                toast({ title: "Data Cleared", description: "All historical report data has been removed." });
+            }
+
         } catch (error) {
-            console.error("Failed to clear local storage:", error);
+            console.error("Failed to clear storage:", error);
             toast({
                 title: "Error Clearing Data",
                 description: "Could not remove report data from storage.",
@@ -239,6 +266,11 @@ export function ReportsDashboard() {
             });
         }
     };
+
+    // Prevent rendering server-side or before client check
+    if (!isClient) {
+        return null; // Or a loading skeleton
+    }
 
 
   return (
@@ -301,6 +333,7 @@ export function ReportsDashboard() {
        <CardFooter className="flex justify-end">
             <AlertDialog>
                 <AlertDialogTrigger asChild>
+                     {/* Disable clear button if no data exists */}
                     <Button variant="destructive" size="sm" disabled={reportData.length === 0}>
                         <Trash2 className="mr-2 h-4 w-4" />
                         Clear All Data

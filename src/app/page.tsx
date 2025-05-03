@@ -8,7 +8,7 @@ import { FootprintDetails } from "@/components/footprint-details";
 import { ReportsDashboard } from "@/components/reports-dashboard";
 import { calculateWebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
 import type { WebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
-import { Loader2, Search } from 'lucide-react';
+import { Loader2, Search, Leaf } from 'lucide-react'; // Import Leaf
 import { useToast } from '@/hooks/use-toast';
 
 export default function Home() {
@@ -97,20 +97,23 @@ export default function Home() {
 
   return (
     // Apply max-width for larger screens, mx-auto for centering
-    <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8">
-      <header className="text-center space-y-2">
-         <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-medium">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-leaf h-4 w-4"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+    // Add subtle background texture/gradient if desired
+    <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8 bg-gradient-to-br from-background to-secondary/30 min-h-screen">
+      <header className="text-center space-y-3">
+         {/* Enhanced Header Styling */}
+         <div className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-lg font-semibold shadow-md">
+             {/* Use Leaf Icon directly */}
+             <Leaf className="h-5 w-5" />
             <span>EcoBrowse</span>
         </div>
-        <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Website Carbon Footprint Analyzer</h1>
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">Website Carbon Footprint Analyzer</h1>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          Enter a website URL to check its estimated carbon footprint score.
+          Enter a website URL to check its estimated carbon footprint score and browse greener.
         </p>
       </header>
 
-      {/* Input Section */}
-      <div className="flex flex-col sm:flex-row items-center gap-2 max-w-lg mx-auto">
+      {/* Input Section - slightly more prominent */}
+      <div className="flex flex-col sm:flex-row items-center gap-3 max-w-lg mx-auto p-2 bg-card rounded-lg shadow">
         <Input
           type="text"
           placeholder="e.g., example.com"
@@ -122,10 +125,10 @@ export default function Home() {
               setIsLoading(false);
           }}
           onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
-          className="flex-grow"
+          className="flex-grow border-muted focus:border-primary focus:ring-primary" // Adjusted styling
           aria-label="Website URL Input"
         />
-        <Button onClick={handleAnalyze} disabled={isLoading || !websiteUrl} className="w-full sm:w-auto">
+        <Button onClick={handleAnalyze} disabled={isLoading || !websiteUrl} className="w-full sm:w-auto shadow-sm hover:shadow-md transition-shadow">
           {isLoading ? (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           ) : (
@@ -138,7 +141,8 @@ export default function Home() {
       {/* Results Section */}
       {(isLoading || footprintData || currentUrlToAnalyze) && (
           // Use grid layout with responsiveness: 1 column on small screens, 2 on medium+
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          // Added subtle border/background to group results
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-card/50 rounded-lg border border-border/50">
             {/* Score Display */}
             <EcoScoreDisplay score={footprintData?.carbonFootprintScore ?? (isLoading ? -1 : 0)} />
 
@@ -154,6 +158,10 @@ export default function Home() {
           {/* Pass key to force re-render when needed, although storage listener in component is preferred */}
           <ReportsDashboard key={reportUpdateTrigger} />
        </div>
+
+        <footer className="text-center text-xs text-muted-foreground pt-6">
+            EcoBrowse v0.1.0 - Helping you navigate the web sustainably.
+        </footer>
 
     </main>
   );

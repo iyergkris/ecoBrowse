@@ -10,6 +10,7 @@ export default {
   theme: {
   	extend: {
   		colors: {
+  			// Updated theme colors from globals.css
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

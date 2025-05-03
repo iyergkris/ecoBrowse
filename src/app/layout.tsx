@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import Head from 'next/head'; // Import Head
 import './globals.css';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
 
@@ -25,6 +26,12 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+       {/* Add favicons - assumes icons exist in public/icons/ */}
+       <Head>
+         <link rel="icon" href="/icons/icon16.png" sizes="16x16" type="image/png" />
+         <link rel="icon" href="/icons/icon32.png" sizes="32x32" type="image/png" /> {/* Common size */}
+         <link rel="apple-touch-icon" href="/icons/icon128.png" /> {/* For iOS */}
+       </Head>
        {/* Remove fixed width for responsiveness */}
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-[300px]`}>
         {children}
