@@ -5,7 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EcoScoreDisplay } from "@/components/eco-score-display";
 import { FootprintDetails } from "@/components/footprint-details";
-import { Suggestions } from "@/components/suggestions";
 import { ReportsDashboard } from "@/components/reports-dashboard";
 import { calculateWebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
 import type { WebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
@@ -17,7 +16,6 @@ export default function Home() {
   const [currentUrlToAnalyze, setCurrentUrlToAnalyze] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [footprintData, setFootprintData] = useState<WebsiteCarbonFootprint | null>(null);
-  const [triggerSuggestions, setTriggerSuggestions] = useState<boolean>(false);
   const { toast } = useToast();
 
   const handleAnalyze = useCallback(async () => {
@@ -32,15 +30,12 @@ export default function Home() {
     setIsLoading(true);
     setFootprintData(null); // Clear previous data
     setCurrentUrlToAnalyze(formattedUrl); // Set the URL to be analyzed
-    setTriggerSuggestions(false); // Ensure suggestions don't trigger prematurely
 
     try {
       const data = await calculateWebsiteCarbonFootprint(formattedUrl);
       setFootprintData(data);
 
       // Add data to reports (using local storage via the component)
-      // Find a way to trigger this addition within ReportsDashboard or lift state up
-      // For now, we'll simulate adding data if it were possible directly
       try {
           const storedData = localStorage.getItem('ecoBrowseReports');
           const reports = storedData ? JSON.parse(storedData) : [];
@@ -58,8 +53,6 @@ export default function Home() {
           // Optionally notify user, but avoid disrupting main flow
       }
 
-
-      setTriggerSuggestions(true); // Now trigger suggestion fetching
        toast({
           title: "Analysis Complete",
           description: `Footprint calculated for ${formattedUrl}`,
@@ -73,17 +66,10 @@ export default function Home() {
           variant: "destructive",
         });
       setCurrentUrlToAnalyze(null); // Reset on error
-      setTriggerSuggestions(false);
     } finally {
-      // Keep loading true until suggestions are also potentially loaded.
-      // Suggestions component will set loading to false via onFetchComplete
+      setIsLoading(false); // Set loading false after analysis is done
     }
   }, [websiteUrl, isLoading, toast]);
-
- const handleSuggestionsFetchComplete = useCallback(() => {
-    setIsLoading(false); // Set loading false only after suggestions are done
-    setTriggerSuggestions(false); // Reset trigger
- }, []);
 
 
   return (
@@ -96,7 +82,7 @@ export default function Home() {
         </div>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight">Website Carbon Footprint Analyzer</h1>
         <p className="text-muted-foreground max-w-xl mx-auto">
-          Enter a website URL to check its estimated carbon footprint score and get tips for a greener web experience.
+          Enter a website URL to check its estimated carbon footprint score.
         </p>
       </header>
 
@@ -110,7 +96,6 @@ export default function Home() {
               setWebsiteUrl(e.target.value);
               setCurrentUrlToAnalyze(null); // Clear analysis state if URL changes
               setFootprintData(null);
-              setTriggerSuggestions(false);
               setIsLoading(false);
           }}
           onKeyPress={(e) => e.key === 'Enter' && handleAnalyze()}
@@ -132,19 +117,11 @@ export default function Home() {
           // Use grid layout with responsiveness: 1 column on small screens, 2 on medium+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Score Display */}
-            <EcoScoreDisplay score={footprintData?.carbonFootprintScore ?? 0} />
+            <EcoScoreDisplay score={footprintData?.carbonFootprintScore ?? (isLoading ? -1 : 0)} />
 
             {/* Footprint Details */}
-            <FootprintDetails details={footprintData} />
+            <FootprintDetails details={footprintData} isLoading={isLoading} />
 
-            {/* Suggestions - Span full width on medium+ screens */}
-             <div className="md:col-span-2">
-                 <Suggestions
-                    websiteUrl={currentUrlToAnalyze}
-                    triggerFetch={triggerSuggestions}
-                    onFetchComplete={handleSuggestionsFetchComplete}
-                  />
-             </div>
           </div>
       )}
 
