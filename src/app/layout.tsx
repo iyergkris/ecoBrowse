@@ -24,19 +24,17 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Remove asset prefix logic, assume root deployment
-  // const isProd = process.env.NODE_ENV === 'production';
-  // const repoName = process.env.GITHUB_REPOSITORY ? process.env.GITHUB_REPOSITORY.split('/')[1] : '';
-  // const assetPrefix = isProd && repoName ? `/${repoName}` : '';
+  // SVG icon representing a green leaf for the favicon
+  const leafSvgIcon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='hsl(150 60% 40%)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z'/><path d='M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12'/></svg>`;
+  const faviconDataUri = `data:image/svg+xml,${encodeURIComponent(leafSvgIcon)}`;
 
   return (
     <html lang="en">
        {/* Use standard head tag, ensure no leading/trailing whitespace inside */}
        <head>
-        {/* Use standard link tags for icons, assuming they are in public/icons */}
-        <link rel="icon" href="/icons/icon16.png" sizes="16x16" type="image/png" />
-        <link rel="icon" href="/icons/icon32.png" sizes="32x32" type="image/png" />
-        <link rel="apple-touch-icon" href="/icons/icon128.png" />
+        {/* Use an SVG data URI for the favicon */}
+        <link rel="icon" href={faviconDataUri} type="image/svg+xml" />
+        {/* Removed old PNG links and apple-touch-icon */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
        </head>
        <body className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen`}>
