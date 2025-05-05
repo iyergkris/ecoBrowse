@@ -1,15 +1,20 @@
 import type { NextConfig } from 'next';
 
+// Determine if the build is for production and specifically for GitHub Pages
+const isProd = process.env.NODE_ENV === 'production';
+// Replace 'ecobrowse-webapp' with your actual GitHub repository name
+const repoName = 'ecobrowse-webapp';
+
 const nextConfig: NextConfig = {
   /* config options here */
-  // Remove static export settings, default to hybrid mode
-  // output: isProd ? 'export' : undefined,
-  // distDir: isProd ? 'out' : '.next',
-  // trailingSlash: isProd ? true : undefined,
+  // Enable static export for GitHub Pages
+  output: isProd ? 'export' : undefined,
+  distDir: isProd ? 'out' : '.next',
+  trailingSlash: isProd ? true : undefined,
 
-  // Remove GitHub Pages basePath and assetPrefix
-  // basePath: isProd && repoName ? `/${repoName}` : '',
-  // assetPrefix: isProd && repoName ? `/${repoName}/` : undefined,
+  // Configure basePath and assetPrefix for GitHub Pages
+  basePath: isProd && repoName ? `/${repoName}` : '',
+  assetPrefix: isProd && repoName ? `/${repoName}/` : undefined,
 
   typescript: {
     ignoreBuildErrors: true,
@@ -18,8 +23,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    // Revert image optimization (Next.js default behavior)
-    // unoptimized: true,
+     // When using static export, default image optimization is disabled.
+     // If you need optimization, consider a cloud provider or keep unoptimized: true.
+    unoptimized: isProd ? true : false, // Keep true for static export compatibility
     remotePatterns: [
       {
         protocol: 'https',

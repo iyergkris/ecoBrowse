@@ -13,6 +13,11 @@ const geistMono = Geist_Mono({
   subsets: ['latin'],
 });
 
+// Define assetPrefix for potential use in client-side links if needed
+// For static export, next/link handles basePath automatically.
+// Manually constructing URLs (e.g., for images outside next/image) might need it.
+const assetPrefix = process.env.NEXT_PUBLIC_BASE_PATH || '';
+
 export const metadata: Metadata = {
   title: 'EcoBrowse', // Updated App Name
   description: 'Analyze website carbon footprint and get eco-friendly suggestions.', // Updated Description
@@ -32,7 +37,7 @@ export default function RootLayout({
     <html lang="en">
        {/* Use standard head tag, ensure no leading/trailing whitespace inside */}
        <head>
-        {/* Use an SVG data URI for the favicon */}
+        {/* Use an SVG data URI for the favicon - this works fine with static export */}
         <link rel="icon" href={faviconDataUri} type="image/svg+xml" />
         {/* Removed old PNG links and apple-touch-icon */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
