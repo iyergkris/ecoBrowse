@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
+import Link from 'next/link'; // Import Link
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { EcoScoreDisplay } from "@/components/eco-score-display";
@@ -53,7 +54,7 @@ export default function Home() {
                 carbonScore: data.carbonFootprintScore, // Use the 0-1 score (higher is better)
             };
 
-            if (chrome && chrome.storage && chrome.storage.local) {
+            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
                  // Use chrome.storage.local if available
                 chrome.storage.local.get([STORAGE_KEY], (result) => {
                     const reports = result[STORAGE_KEY] || [];
@@ -68,7 +69,7 @@ export default function Home() {
                          }
                      });
                  });
-             } else {
+             } else if (typeof localStorage !== 'undefined') {
                  // Fallback to localStorage
                 const storedData = localStorage.getItem(STORAGE_KEY);
                 const reports = storedData ? JSON.parse(storedData) : [];
@@ -76,6 +77,13 @@ export default function Home() {
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
                 // Dispatch standard storage event for components listening to localStorage changes
                 window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: JSON.stringify(reports), storageArea: localStorage }));
+             } else {
+                  console.warn("Storage unavailable, cannot save report.");
+                   toast({
+                      title: "Storage Unavailable",
+                      description: "Could not save the analysis result to your reports.",
+                      variant: "destructive",
+                  });
              }
 
             // Trigger state update in this component if necessary (though listening components are preferred)
@@ -172,12 +180,14 @@ export default function Home() {
     // Define STORAGE_KEY locally or import if defined elsewhere
     <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8 bg-gradient-to-br from-background to-secondary/30 min-h-screen">
       <header className="text-center space-y-3">
-         {/* Enhanced Header Styling */}
-         <div className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-lg font-semibold shadow-md">
-             {/* Use Leaf Icon directly */}
-             <Leaf className="h-5 w-5" />
-            <span>EcoBrowse</span>
-        </div>
+         {/* Enhanced Header Styling - Make it a link */}
+          <Link href="/" className="inline-block text-decoration-none"> {/* Wrap in Link */}
+              <div className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-lg font-semibold shadow-md transition-transform duration-200 hover:scale-105">
+                  {/* Use Leaf Icon directly */}
+                  <Leaf className="h-5 w-5" />
+                  <span>EcoBrowse</span>
+              </div>
+          </Link>
         <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-foreground">Website Eco-Efficiency Analyzer</h1>
         <p className="text-muted-foreground max-w-xl mx-auto">
           Enter a website URL to check its estimated eco-efficiency score (higher is better) and browse greener.
