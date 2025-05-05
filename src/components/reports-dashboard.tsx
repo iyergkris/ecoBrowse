@@ -36,27 +36,17 @@ export function ReportsDashboard() {
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false); // State to track client-side rendering
 
-  // Function to load data, checking for chrome.storage first
-  const loadReportData = useCallback(async () => {
+  // Function to load data from localStorage
+  const loadReportData = useCallback(() => {
      if (typeof window === 'undefined') return; // Don't run on server
 
     try {
-      if (chrome && chrome.storage && chrome.storage.local) {
-        chrome.storage.local.get([STORAGE_KEY], (result) => {
-          const data = result[STORAGE_KEY] || [];
-           // Sort by timestamp descending (newest first) before setting state
-          const sortedData = data.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
-          setReportData(sortedData);
-          console.log("ReportsDashboard: Loaded data from chrome.storage.local");
-        });
-      } else {
-        const storedData = localStorage.getItem(STORAGE_KEY);
-        const data = storedData ? JSON.parse(storedData) : [];
-        // Sort by timestamp descending (newest first) before setting state
-        const sortedData = data.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
-        setReportData(sortedData);
-        console.log("ReportsDashboard: Loaded data from localStorage");
-      }
+      const storedData = localStorage.getItem(STORAGE_KEY);
+      const data = storedData ? JSON.parse(storedData) : [];
+      // Sort by timestamp descending (newest first) before setting state
+      const sortedData = data.sort((a: ReportEntry, b: ReportEntry) => b.timestamp - a.timestamp);
+      setReportData(sortedData);
+      console.log("ReportsDashboard: Loaded data from localStorage");
     } catch (error) {
       console.error("Failed to load report data:", error);
       toast({
@@ -68,9 +58,9 @@ export function ReportsDashboard() {
   }, [toast]);
 
    // Function to handle storage changes and update state
-   const handleStorageChange = useCallback((event: StorageEvent | CustomEvent) => {
-      // Check if the event key matches our storage key or if it's our custom event
-     if ((event instanceof StorageEvent && event.key === STORAGE_KEY) || event.type === 'ecobrowse_report_updated' || event.type === 'ecobrowse_report_cleared') {
+   const handleStorageChange = useCallback((event: StorageEvent) => {
+      // Check if the event key matches our storage key
+     if (event.key === STORAGE_KEY) {
         console.log("ReportsDashboard: Storage change detected, reloading data.");
         loadReportData(); // Reload data on change
      }
@@ -82,19 +72,12 @@ export function ReportsDashboard() {
     setIsClient(true); // Set client state to true once mounted
     loadReportData(); // Initial load
 
-    // Add listener for storage events from other tabs/windows or background script
+    // Add listener for storage events from other tabs/windows
     window.addEventListener('storage', handleStorageChange);
-    // Add listener for custom event dispatched when chrome.storage changes
-    window.addEventListener('ecobrowse_report_updated', handleStorageChange);
-    // Add listener for custom event dispatched when data is cleared
-     window.addEventListener('ecobrowse_report_cleared', handleStorageChange);
-
 
     // Cleanup listener on component unmount
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('ecobrowse_report_updated', handleStorageChange);
-      window.removeEventListener('ecobrowse_report_cleared', handleStorageChange);
     };
    }, [loadReportData, handleStorageChange]);
 
@@ -264,29 +247,11 @@ export function ReportsDashboard() {
         setAggregatedReports([]);
 
         try {
-            if (chrome && chrome.storage && chrome.storage.local) {
-                chrome.storage.local.remove(STORAGE_KEY, () => {
-                    if (chrome.runtime.lastError) {
-                         console.error("Error clearing chrome.storage.local:", chrome.runtime.lastError);
-                         // Revert UI changes on error
-                         setReportData(oldReportData);
-                         setAggregatedReports(aggregateData(oldReportData, timeframe));
-                         toast({ title: "Error", description: "Could not clear data from storage.", variant: "destructive" });
-                    } else {
-                        console.log("Cleared data from chrome.storage.local");
-                        // Dispatch custom event to notify other components (like page.tsx)
-                        window.dispatchEvent(new CustomEvent('ecobrowse_report_cleared'));
-                        toast({ title: "Data Cleared", description: "All historical report data has been removed." });
-                    }
-                });
-            } else {
-                localStorage.removeItem(STORAGE_KEY);
-                 console.log("Cleared data from localStorage");
-                // Dispatch storage event manually to notify other components (like page.tsx)
-                window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null, storageArea: localStorage }));
-                toast({ title: "Data Cleared", description: "All historical report data has been removed." });
-            }
-
+            localStorage.removeItem(STORAGE_KEY);
+            console.log("Cleared data from localStorage");
+            // Dispatch storage event manually to notify other components (like page.tsx)
+            window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: null, storageArea: localStorage }));
+            toast({ title: "Data Cleared", description: "All historical report data has been removed." });
         } catch (error) {
              // Revert UI changes on error
              setReportData(oldReportData);
@@ -414,7 +379,7 @@ export function ReportsDashboard() {
                         <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                         <AlertDialogDescription>
                             This action cannot be undone. This will permanently delete all
-                            your browsing report history stored locally by this extension.
+                            your browsing report history stored locally.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -427,5 +392,3 @@ export function ReportsDashboard() {
     </Card>
   );
 }
-
-    

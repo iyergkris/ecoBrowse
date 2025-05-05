@@ -14,13 +14,15 @@ import { Loader2, Search, Leaf } from 'lucide-react'; // Import Leaf
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
+// Define STORAGE_KEY locally or import if defined elsewhere
+const STORAGE_KEY = 'ecoBrowseReports';
+
 export default function Home() {
   const [websiteUrl, setWebsiteUrl] = useState<string>('');
   const [currentUrlToAnalyze, setCurrentUrlToAnalyze] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [footprintData, setFootprintData] = useState<WebsiteCarbonFootprint | null>(null);
-  // Add state to force re-render of ReportsDashboard if needed, although listening to storage event might be better
-  const [reportUpdateTrigger, setReportUpdateTrigger] = useState<number>(0);
+  const [reportUpdateTrigger, setReportUpdateTrigger] = useState<number>(0); // Keep for potential force re-render needs
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false); // Track client-side rendering
 
@@ -46,7 +48,7 @@ export default function Home() {
       const data = await calculateWebsiteCarbonFootprint(formattedUrl);
       setFootprintData(data);
 
-      // Add data to reports (using local storage or chrome.storage)
+      // Add data to reports using localStorage
        try {
             const newEntry = {
                 timestamp: Date.now(),
@@ -54,31 +56,17 @@ export default function Home() {
                 carbonScore: data.carbonFootprintScore, // Use the 0-1 score (higher is better)
             };
 
-            if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
-                 // Use chrome.storage.local if available
-                chrome.storage.local.get([STORAGE_KEY], (result) => {
-                    const reports = result[STORAGE_KEY] || [];
-                    reports.push(newEntry);
-                     chrome.storage.local.set({ [STORAGE_KEY]: reports }, () => {
-                         if (chrome.runtime.lastError) {
-                             console.error("Error saving report to chrome.storage:", chrome.runtime.lastError);
-                         } else {
-                             console.log('Report saved to chrome.storage.local');
-                             // Dispatch custom event for components listening to chrome.storage changes
-                              window.dispatchEvent(new CustomEvent('ecobrowse_report_updated'));
-                         }
-                     });
-                 });
-             } else if (typeof localStorage !== 'undefined') {
-                 // Fallback to localStorage
+             if (typeof localStorage !== 'undefined') {
+                 // Use localStorage
                 const storedData = localStorage.getItem(STORAGE_KEY);
                 const reports = storedData ? JSON.parse(storedData) : [];
                 reports.push(newEntry);
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
                 // Dispatch standard storage event for components listening to localStorage changes
                 window.dispatchEvent(new StorageEvent('storage', { key: STORAGE_KEY, newValue: JSON.stringify(reports), storageArea: localStorage }));
+                 console.log('Report saved to localStorage');
              } else {
-                  console.warn("Storage unavailable, cannot save report.");
+                  console.warn("localStorage unavailable, cannot save report.");
                    toast({
                       title: "Storage Unavailable",
                       description: "Could not save the analysis result to your reports.",
@@ -116,14 +104,14 @@ export default function Home() {
     } finally {
       setIsLoading(false); // Set loading false after analysis is done
     }
-  }, [websiteUrl, isLoading, toast]); // Removed reportUpdateTrigger dependency, rely on events
+  }, [websiteUrl, isLoading, toast]);
 
     // Effect to listen for storage changes specifically for clearing data
     // This ensures UI consistency if data is cleared from the ReportsDashboard
     useEffect(() => {
-        const handleStorageClear = (event: StorageEvent | CustomEvent) => {
-            // Listen for standard storage event with null newValue or our custom clear event
-            if ((event instanceof StorageEvent && event.key === STORAGE_KEY && event.newValue === null) || event.type === 'ecobrowse_report_cleared') {
+        const handleStorageClear = (event: StorageEvent) => {
+            // Listen for standard storage event with null newValue
+            if (event.key === STORAGE_KEY && event.newValue === null) {
                  console.log("Home: Detected report data cleared, triggering UI update.");
                  // Force a state update to potentially re-render dependent components if necessary
                  setReportUpdateTrigger(Date.now());
@@ -131,10 +119,8 @@ export default function Home() {
         };
 
         window.addEventListener('storage', handleStorageClear);
-        window.addEventListener('ecobrowse_report_cleared', handleStorageClear); // Listen for custom clear event
         return () => {
             window.removeEventListener('storage', handleStorageClear);
-            window.removeEventListener('ecobrowse_report_cleared', handleStorageClear);
         };
     }, []); // Empty dependency array
 
@@ -177,7 +163,6 @@ export default function Home() {
   return (
     // Apply max-width for larger screens, mx-auto for centering
     // Add subtle background texture/gradient if desired
-    // Define STORAGE_KEY locally or import if defined elsewhere
     <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8 bg-gradient-to-br from-background to-secondary/30 min-h-screen">
       <header className="text-center space-y-3">
          {/* Enhanced Header Styling - Make it a link */}
@@ -255,6 +240,3 @@ export default function Home() {
     </main>
   );
 }
-
-// Define STORAGE_KEY if it's not imported
-const STORAGE_KEY = 'ecoBrowseReports';
