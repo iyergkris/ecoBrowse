@@ -1,19 +1,19 @@
 import type { NextConfig } from 'next';
 
-// Determine if the build is for production and specifically for GitHub Pages
-const isProd = process.env.NODE_ENV === 'production';
-const repoName = 'ecoBrowse';
+// Determine if the build is for GitHub Pages static export
+const isGithubPagesBuild = process.env.GITHUB_PAGES_BUILD === 'true';
+const repoName = 'ecoBrowse'; // Keep your repository name here
 
 const nextConfig: NextConfig = {
   /* config options here */
-  // Enable static export for GitHub Pages
-  output: isProd ? 'export' : undefined,
-  distDir: isProd ? 'out' : '.next',
-  trailingSlash: isProd ? true : undefined,
-
-  // Configure basePath and assetPrefix for GitHub Pages
-  basePath: isProd ? `/${repoName}` : '',
-  assetPrefix: isProd ? `/${repoName}/` : undefined,
+  // Enable static export only when GITHUB_PAGES_BUILD is true
+  output: isGithubPagesBuild ? 'export' : undefined,
+  // Change distDir only for the static export build
+  distDir: isGithubPagesBuild ? 'out' : '.next',
+  // Apply trailingSlash, basePath, and assetPrefix only for GitHub Pages build
+  trailingSlash: isGithubPagesBuild ? true : undefined,
+  basePath: isGithubPagesBuild ? `/${repoName}` : '',
+  assetPrefix: isGithubPagesBuild ? `/${repoName}/` : undefined,
 
   typescript: {
     ignoreBuildErrors: true,
@@ -22,9 +22,8 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-     // When using static export, default image optimization is disabled.
-     // If you need optimization, consider a cloud provider or keep unoptimized: true.
-    unoptimized: isProd ? true : false, // Keep true for static export compatibility
+    // Unoptimize images for static export or if explicitly set
+    unoptimized: isGithubPagesBuild ? true : false,
     remotePatterns: [
       {
         protocol: 'https',

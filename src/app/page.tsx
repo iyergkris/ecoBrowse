@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -234,9 +235,10 @@ export default function Home() {
 
 
         <footer className="text-center text-xs text-muted-foreground pt-6">
-            EcoBrowse v0.1.0 - Helping you navigate the web sustainably.
+            Made with Love for Planet Earth by iyergkris
         </footer>
 
     </main>
   );
 }
+

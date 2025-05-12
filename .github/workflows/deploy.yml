@@ -69,18 +69,16 @@ jobs:
       - name: Install dependencies
         run: ${{ steps.detect-package-manager.outputs.manager }} ${{ steps.detect-package-manager.outputs.command }}
       - name: Build with Next.js
-        # Use production environment variable for static export
-        run: env NODE_ENV=production ${{ steps.detect-package-manager.outputs.runner }} next build
+        run: ${{ steps.detect-package-manager.outputs.runner }} next build
         env:
-            # Set basePath and assetPrefix if needed explicitly (actions/configure-pages should handle this)
-            # BASE_PATH: /${{ github.event.repository.name }}
-            # ASSET_PREFIX: /${{ github.event.repository.name }}
-            NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }} # Pass repo name if needed in client-side code
+            NODE_ENV: production
+            GITHUB_PAGES_BUILD: true # This will trigger static export settings
+            NEXT_PUBLIC_BASE_PATH: /${{ github.event.repository.name }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./out # Default output directory for 'next export'
+          path: ./out # Default output directory for static export
 
   # Deployment job
   deploy:
