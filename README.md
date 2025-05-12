@@ -2,6 +2,8 @@
 
 This is a Next.js web application built with Firebase Studio. It analyzes the carbon footprint of visited websites and provides eco-friendly suggestions.
 
+Most of this app has been vibe-coded.
+
 ## Getting Started
 
 1.  **Install Dependencies:**
@@ -26,14 +28,6 @@ This is a Next.js web application built with Firebase Studio. It analyzes the ca
     npm run start
     ```
     This starts the Next.js production server.
-
-## Project Structure
-
--   `src/app/`: Contains the main Next.js application pages and layout.
--   `src/components/`: Reusable React components for the UI.
--   `src/services/`: Services like the carbon footprint calculator.
--   `public/`: Static assets (e.g., icons).
--   `.next/`: (Generated after build) Contains the production build output.
 
 ## Core Features
 

@@ -1,36 +1,36 @@
 {
   "../node_modules/jspdf/dist/jspdf.es.min.js -> canvg": {
-    "id": 4137,
+    "id": 34137,
     "files": [
-      "static/chunks/bc98253f.61ec81f8cd71ea4d.js",
-      "static/chunks/121.e328281f79ab0a9d.js"
+      "static/chunks/bc98253f.d21a5b1e2e1a8f86.js",
+      "static/chunks/121.d1e9ec53e06ed3c1.js"
     ]
   },
   "../node_modules/jspdf/dist/jspdf.es.min.js -> dompurify": {
-    "id": 2831,
+    "id": 32831,
     "files": [
-      "static/chunks/831.318234e30f31a374.js"
+      "static/chunks/831.3d4c5f280eca332b.js"
     ]
   },
   "../node_modules/jspdf/dist/jspdf.es.min.js -> html2canvas": {
-    "id": 2699,
+    "id": 52699,
     "files": [
-      "static/chunks/ad2866b8.ba41a4c2c4874824.js"
+      "static/chunks/ad2866b8.be40dcaf005a4da1.js"
     ]
   },
   "components/reports-dashboard.tsx -> jspdf": {
-    "id": 6597,
+    "id": 26597,
     "files": [
-      "static/chunks/164f4fb6.d3eaa411dbc55b00.js",
-      "static/chunks/913.b0f05baa29b7206f.js"
+      "static/chunks/164f4fb6.46fece93b5e27b96.js",
+      "static/chunks/913.ad67847ee8527ef5.js"
     ]
   },
   "components/reports-dashboard.tsx -> jspdf-autotable": {
-    "id": 6087,
+    "id": 86087,
     "files": [
-      "static/chunks/164f4fb6.d3eaa411dbc55b00.js",
-      "static/chunks/913.b0f05baa29b7206f.js",
-      "static/chunks/87.68fea8c3c801a1a6.js"
+      "static/chunks/164f4fb6.46fece93b5e27b96.js",
+      "static/chunks/913.ad67847ee8527ef5.js",
+      "static/chunks/87.86f36328324a5505.js"
     ]
   }
 }
