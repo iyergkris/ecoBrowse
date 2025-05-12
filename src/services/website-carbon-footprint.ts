@@ -48,20 +48,27 @@ export async function calculateWebsiteCarbonFootprint(
 
   // Generate estimated data based somewhat on URL characteristics (heuristic model)
   const urlComplexity = websiteUrl.length / 50; // Simple factor based on length
-  const randomFactor = Math.random();
+  const randomFactor = Math.random(); // Single random factor for consistency in a single calculation
 
   // Estimate factors influencing footprint
-  const dataTransfer = Math.floor((500 * 1024) + (randomFactor * 2 * 1024 * 1024) + (urlComplexity * 512 * 1024)); // Estimate 500KB to ~2.5MB
-  // Factors where higher is better for the environment
-  const serverEfficiencyFactor = 0.6 + (randomFactor * 0.35); // Estimate 0.6 to 0.95 (higher = more efficient)
-  const renewableUsageFactor = 0.1 + (randomFactor * 0.8); // Estimate 0.1 to 0.9 (higher = more renewables)
+  // Data transfer: base 500KB + random up to 2MB + complexity factor up to 512KB
+  const dataTransfer = Math.floor((500 * 1024) + (randomFactor * 2 * 1024 * 1024) + (urlComplexity * 512 * 1024));
+  
+  // Server efficiency: base 0.7 + random up to 0.25 (Range: 0.7 to 0.95)
+  const serverEfficiencyFactor = 0.7 + (randomFactor * 0.25); 
+  
+  // Renewable energy usage: base 0.2 + random up to 0.7 (Range: 0.2 to 0.9)
+  const renewableUsageFactor = 0.2 + (randomFactor * 0.7); 
 
   // Scoring logic based on estimated factors (intermediate scores, lower indicates higher impact)
-  const dataImpactScore = Math.min(1, dataTransfer / (2 * 1024 * 1024)); // Normalize based on estimated average max (Lower data transfer is better, so higher score here means higher impact)
+  // Data impact: Normalize based on a 4MB "heavy" site threshold. 
+  // Score approaches 1 (max impact) as dataTransfer approaches 4MB or more.
+  const dataImpactScore = Math.min(1, dataTransfer / (4 * 1024 * 1024)); 
   const efficiencyImpactScore = 1 - serverEfficiencyFactor; // Lower efficiency means higher impact
   const renewableImpactScore = 1 - renewableUsageFactor; // Lower renewables means higher impact
 
   // Weighted average for final *impact* score (lower is better impact, higher means worse footprint)
+  // Weights: Data Transfer 50%, Server Efficiency 25%, Renewable Energy 25%
   const totalImpactScore = (dataImpactScore * 0.5) + (efficiencyImpactScore * 0.25) + (renewableImpactScore * 0.25);
 
   // Invert the impact score to get the final *eco-efficiency* score (higher is better)
