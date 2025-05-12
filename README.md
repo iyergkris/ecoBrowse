@@ -1,4 +1,4 @@
-# EcoBrowse
+t check# EcoBrowse
 
 This is a Next.js web application built with Firebase Studio. It analyzes the carbon footprint of visited websites and provides eco-friendly suggestions.
 
