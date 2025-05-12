@@ -17,5 +17,20 @@
     "files": [
       "static/chunks/ad2866b8.ba41a4c2c4874824.js"
     ]
+  },
+  "components/reports-dashboard.tsx -> jspdf": {
+    "id": 6597,
+    "files": [
+      "static/chunks/164f4fb6.d3eaa411dbc55b00.js",
+      "static/chunks/913.b0f05baa29b7206f.js"
+    ]
+  },
+  "components/reports-dashboard.tsx -> jspdf-autotable": {
+    "id": 6087,
+    "files": [
+      "static/chunks/164f4fb6.d3eaa411dbc55b00.js",
+      "static/chunks/913.b0f05baa29b7206f.js",
+      "static/chunks/87.68fea8c3c801a1a6.js"
+    ]
   }
 }
