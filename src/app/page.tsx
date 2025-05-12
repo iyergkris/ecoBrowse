@@ -11,7 +11,7 @@ import { ReportsDashboard } from "@/components/reports-dashboard";
 import { PopularSites } from "@/components/popular-sites"; // Import PopularSites
 import { calculateWebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
 import type { WebsiteCarbonFootprint } from '@/services/website-carbon-footprint';
-import { Loader2, Search, Leaf } from 'lucide-react'; // Import Leaf
+import { Loader2, Search, Leaf, Heart, Globe } from 'lucide-react'; // Import Leaf, Heart, Globe
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton'; // Import Skeleton
 
@@ -234,8 +234,9 @@ export default function Home() {
        </div>
 
 
-        <footer className="text-center text-xs text-muted-foreground pt-6">
-            Made with Love for Planet Earth by <a href="https://iyergkris.github.io/" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">iyergkris</a>
+        <footer className="text-center text-xs text-muted-foreground pt-6 flex items-center justify-center">
+            Made with Love <Heart className="inline-block h-3 w-3 text-red-500 fill-red-500 mx-1" /> for Planet Earth <Globe className="inline-block h-3 w-3 text-blue-500 mx-1" /> by&nbsp;
+            <a href="https://iyergkris.github.io/" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">iyergkris</a>
         </footer>
 
     </main>
