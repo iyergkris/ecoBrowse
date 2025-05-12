@@ -12,8 +12,8 @@ const nextConfig: NextConfig = {
   trailingSlash: isProd ? true : undefined,
 
   // Configure basePath and assetPrefix for GitHub Pages
-  basePath: isProd && repoName ? `/${repoName}` : '',
-  assetPrefix: isProd && repoName ? `/${repoName}/` : undefined,
+  basePath: isProd ? `/${repoName}` : '',
+  assetPrefix: isProd ? `/${repoName}/` : undefined,
 
   typescript: {
     ignoreBuildErrors: true,
