@@ -166,7 +166,7 @@ export default function Home() {
     <main className="container mx-auto max-w-7xl p-4 md:p-8 space-y-8 bg-gradient-to-br from-background to-secondary/30 min-h-screen">
       <header className="text-center space-y-3">
          {/* Enhanced Header Styling - Make it a link */}
-          <Link href="/" className="inline-block text-decoration-none"> {/* Wrap in Link */}
+          <Link href="/" passHref legacyBehavior> {/* Wrap in Link, use legacyBehavior for href on anchor */}
               <div className="inline-flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-full text-lg font-semibold shadow-md transition-transform duration-200 hover:scale-105">
                   {/* Use Leaf Icon directly */}
                   <Leaf className="h-5 w-5" />
