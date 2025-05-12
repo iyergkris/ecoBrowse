@@ -235,7 +235,7 @@ export default function Home() {
 
 
         <footer className="text-center text-xs text-muted-foreground pt-6">
-            Made with Love for Planet Earth by iyergkris
+            Made with Love for Planet Earth by <a href="https://iyergkris.github.io/" target="_blank" rel="noopener noreferrer" className="underline hover:text-primary">iyergkris</a>
         </footer>
 
     </main>
