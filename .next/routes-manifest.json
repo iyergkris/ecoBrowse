@@ -2,15 +2,15 @@
   "version": 3,
   "pages404": true,
   "caseSensitive": false,
-  "basePath": "/ecobrowse-webapp",
+  "basePath": "/ecoBrowse",
   "redirects": [
     {
-      "source": "/ecobrowse-webapp",
-      "destination": "/ecobrowse-webapp/",
+      "source": "/ecoBrowse",
+      "destination": "/ecoBrowse/",
       "basePath": false,
       "internal": true,
       "statusCode": 308,
-      "regex": "^/ecobrowse-webapp$"
+      "regex": "^/ecoBrowse$"
     },
     {
       "source": "/:file((?!\\.well-known(?:/.*)?)(?:[^/]+/)*[^/]+\\.\\w+)/",
@@ -75,9 +75,9 @@
   "rewrites": {
     "beforeFiles": [
       {
-        "source": "/ecobrowse-webapp//_next/:path+",
-        "destination": "/ecobrowse-webapp/_next/:path+",
-        "regex": "^/ecobrowse-webapp//_next(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))(?:/)?$"
+        "source": "/ecoBrowse//_next/:path+",
+        "destination": "/ecoBrowse/_next/:path+",
+        "regex": "^/ecoBrowse//_next(?:/((?:[^/]+?)(?:/(?:[^/]+?))*))(?:/)?$"
       }
     ],
     "afterFiles": [],

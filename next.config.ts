@@ -2,8 +2,7 @@ import type { NextConfig } from 'next';
 
 // Determine if the build is for production and specifically for GitHub Pages
 const isProd = process.env.NODE_ENV === 'production';
-// Replace 'ecobrowse-webapp' with your actual GitHub repository name
-const repoName = 'ecobrowse-webapp';
+const repoName = 'ecoBrowse';
 
 const nextConfig: NextConfig = {
   /* config options here */

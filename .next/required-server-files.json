@@ -12,7 +12,7 @@
     },
     "distDir": ".next",
     "cleanDistDir": true,
-    "assetPrefix": "/ecobrowse-webapp/",
+    "assetPrefix": "/ecoBrowse/",
     "cacheMaxMemorySize": 52428800,
     "configOrigin": "next.config.ts",
     "useFileSystemPublicRoutes": true,
@@ -46,7 +46,7 @@
         256,
         384
       ],
-      "path": "/ecobrowse-webapp/_next/image/",
+      "path": "/ecoBrowse/_next/image/",
       "loader": "default",
       "loaderFile": "",
       "domains": [],
@@ -76,9 +76,9 @@
       "pagesBufferLength": 5
     },
     "amp": {
-      "canonicalBase": "/ecobrowse-webapp"
+      "canonicalBase": "/ecoBrowse"
     },
-    "basePath": "/ecobrowse-webapp",
+    "basePath": "/ecoBrowse",
     "sassOptions": {},
     "trailingSlash": true,
     "i18n": null,
